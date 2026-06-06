@@ -1,82 +1,94 @@
 {
-  "best_model": "GaussianNB",
+  "best_model": "RandomForestClassifier",
+  "model_selection": {
+    "method": "lazypredict_on_train_validation_split",
+    "validation_size": 0.2,
+    "tree_based_filter": [
+      "RandomForestClassifier",
+      "ExtraTreesClassifier",
+      "DecisionTreeClassifier",
+      "XGBClassifier",
+      "LGBMClassifier"
+    ],
+    "default_fallback": "RandomForestClassifier"
+  },
   "lazypredict_top5": [
     {
       "Model": "GaussianNB",
-      "Accuracy": 0.9954545454545455,
-      "Balanced Accuracy": 0.9954545454545454,
-      "ROC AUC": 0.9999675324675324,
-      "F1 Score": 0.9954431533378901,
-      "Precision": 0.9958677685950413,
-      "Recall": 0.9954545454545455,
-      "Time Taken": 0.023365020751953125
-    },
-    {
-      "Model": "ExtraTreesClassifier",
-      "Accuracy": 0.9954545454545455,
-      "Balanced Accuracy": 0.9954545454545454,
-      "ROC AUC": 0.9999702380952381,
-      "F1 Score": 0.9954517027687759,
-      "Precision": 0.9956709956709956,
-      "Recall": 0.9954545454545455,
-      "Time Taken": 0.23941826820373535
-    },
-    {
-      "Model": "RandomForestClassifier",
-      "Accuracy": 0.9954545454545455,
-      "Balanced Accuracy": 0.9954545454545454,
-      "ROC AUC": 0.9999945887445888,
-      "F1 Score": 0.9954517027687759,
-      "Precision": 0.9956709956709956,
-      "Recall": 0.9954545454545455,
-      "Time Taken": 0.3875102996826172
-    },
-    {
-      "Model": "XGBClassifier",
-      "Accuracy": 0.9931818181818182,
-      "Balanced Accuracy": 0.993181818181818,
-      "ROC AUC": 0.9999242424242424,
-      "F1 Score": 0.9931162119865588,
-      "Precision": 0.9935064935064934,
-      "Recall": 0.9931818181818182,
-      "Time Taken": 0.9545531272888184
+      "Accuracy": 0.9943181818181818,
+      "Balanced Accuracy": 0.9943181818181818,
+      "ROC AUC": 0.9999661796536795,
+      "F1 Score": 0.9942959001782531,
+      "Precision": 0.9949494949494949,
+      "Recall": 0.9943181818181818,
+      "Time Taken": 0.026249408721923828
     },
     {
       "Model": "QuadraticDiscriminantAnalysis",
-      "Accuracy": 0.9886363636363636,
-      "Balanced Accuracy": 0.9886363636363636,
-      "ROC AUC": 0.9999675324675324,
-      "F1 Score": 0.9886292569219398,
-      "Precision": 0.9889496468443838,
-      "Recall": 0.9886363636363636,
-      "Time Taken": 0.02304553985595703
+      "Accuracy": 0.9943181818181818,
+      "Balanced Accuracy": 0.9943181818181818,
+      "ROC AUC": 0.9999492694805195,
+      "F1 Score": 0.9942959001782531,
+      "Precision": 0.9949494949494949,
+      "Recall": 0.9943181818181818,
+      "Time Taken": 0.023723602294921875
+    },
+    {
+      "Model": "RandomForestClassifier",
+      "Accuracy": 0.9943181818181818,
+      "Balanced Accuracy": 0.9943181818181818,
+      "ROC AUC": 0.9999788622835498,
+      "F1 Score": 0.9943181818181818,
+      "Precision": 0.9943181818181818,
+      "Recall": 0.9943181818181818,
+      "Time Taken": 0.24854016304016113
+    },
+    {
+      "Model": "BaggingClassifier",
+      "Accuracy": 0.9914772727272727,
+      "Balanced Accuracy": 0.9914772727272727,
+      "ROC AUC": 0.9998774012445888,
+      "F1 Score": 0.9914522140501095,
+      "Precision": 0.9922756981580512,
+      "Recall": 0.9914772727272727,
+      "Time Taken": 0.09176135063171387
+    },
+    {
+      "Model": "XGBClassifier",
+      "Accuracy": 0.9914772727272727,
+      "Balanced Accuracy": 0.9914772727272727,
+      "ROC AUC": 0.9999577245670995,
+      "F1 Score": 0.9914689416155692,
+      "Precision": 0.9916221033868093,
+      "Recall": 0.9914772727272727,
+      "Time Taken": 0.5269274711608887
     }
   ],
   "cross_validation": {
     "accuracy": {
-      "mean": 0.9948863636363636,
-      "std": 0.004175266607016787
+      "mean": 0.9926136363636363,
+      "std": 0.005849789852833542
     },
     "precision": {
-      "mean": 0.9952211187505305,
-      "std": 0.00392177072328593
+      "mean": 0.9934165181224005,
+      "std": 0.00490452047899412
     },
     "recall": {
-      "mean": 0.9948863636363636,
-      "std": 0.004175266607016787
+      "mean": 0.9926136363636363,
+      "std": 0.005849789852833542
     },
     "f1": {
-      "mean": 0.9948713284300658,
-      "std": 0.004192097445921013
+      "mean": 0.9925658716343554,
+      "std": 0.005917705222470937
     }
   },
   "test_metrics": {
     "accuracy": 0.9954545454545455,
-    "precision_macro": 0.9958677685950413,
+    "precision_macro": 0.9956709956709957,
     "recall_macro": 0.9954545454545454,
-    "f1_macro": 0.9954431533378901,
-    "roc_auc_ovr_macro": 0.9999675324675326,
-    "roc_auc_ovr_weighted": 0.9999675324675324
+    "f1_macro": 0.9954517027687758,
+    "roc_auc_ovr_macro": 0.9999945887445887,
+    "roc_auc_ovr_weighted": 0.9999945887445888
   },
   "artifacts": {
     "model_path": "C:\\Users\\zeysi\\OneDrive\\Masaüstü\\ml_proje\\models\\best_model.pkl",

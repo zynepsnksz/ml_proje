@@ -19,7 +19,7 @@ from sklearn.metrics import (
     roc_auc_score,
     roc_curve,
 )
-from sklearn.model_selection import StratifiedKFold, cross_validate
+from sklearn.model_selection import StratifiedKFold, cross_validate, train_test_split
 from sklearn.preprocessing import StandardScaler, label_binarize
 
 from src.config import (
@@ -40,27 +40,56 @@ from src.preprocessing import (
     fit_label_encoder,
 )
 
+TREE_BASED_MODELS = [
+    "RandomForestClassifier",
+    "ExtraTreesClassifier",
+    "DecisionTreeClassifier",
+    "XGBClassifier",
+    "LGBMClassifier",
+]
+DEFAULT_TREE_MODEL = "RandomForestClassifier"
+LAZYPREDICT_VAL_SIZE = 0.2
+
 
 def _ensure_output_dir() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 
+def _select_tree_model(results: pd.DataFrame) -> str:
+    """LazyPredict sonuçlarından SHAP TreeExplainer uyumlu ilk modeli seçer."""
+    ranked = results.sort_values("Accuracy", ascending=False).index.tolist()
+    for model_name in ranked:
+        if model_name in TREE_BASED_MODELS:
+            return model_name
+    return DEFAULT_TREE_MODEL
+
+
 def select_best_model_with_lazypredict(
     X_train: pd.DataFrame,
-    X_test: pd.DataFrame,
     y_train: np.ndarray,
-    y_test: np.ndarray,
 ) -> tuple[str, pd.DataFrame]:
-    """LazyPredict ile modelleri karşılaştırır, en iyisini seçer."""
+    """LazyPredict ile modelleri karşılaştırır, ağaç tabanlı en iyi modeli seçer.
+
+    Model seçimi yalnızca eğitim setinin iç validation bölünmesi üzerinde yapılır.
+    Test seti bu aşamada kullanılmaz (test set leakage önlenir).
+    """
+    X_lp_train, X_lp_val, y_lp_train, y_lp_val = train_test_split(
+        X_train,
+        y_train,
+        test_size=LAZYPREDICT_VAL_SIZE,
+        random_state=RANDOM_STATE,
+        stratify=y_train,
+    )
+
     scaler = StandardScaler()
-    X_train_scaled = scaler.fit_transform(X_train)
-    X_test_scaled = scaler.transform(X_test)
+    X_lp_train_scaled = scaler.fit_transform(X_lp_train)
+    X_lp_val_scaled = scaler.transform(X_lp_val)
 
     lazy_clf = LazyClassifier(verbose=0, ignore_warnings=True, predictions=False)
-    results, _ = lazy_clf.fit(X_train_scaled, X_test_scaled, y_train, y_test)
+    results, _ = lazy_clf.fit(X_lp_train_scaled, X_lp_val_scaled, y_lp_train, y_lp_val)
     results = results.sort_values("Accuracy", ascending=False)
-    best_model_name = results.index[0]
+    best_model_name = _select_tree_model(results)
     return best_model_name, results
 
 
@@ -220,7 +249,7 @@ def train() -> dict[str, Any]:
     y_test_enc = np.array(encode_labels(label_encoder, y_test))
 
     best_model_name, lazy_results = select_best_model_with_lazypredict(
-        X_train, X_test, y_train_enc, y_test_enc
+        X_train, y_train_enc
     )
     lazy_results.to_csv(LAZYPREDICT_PATH)
 
@@ -243,6 +272,12 @@ def train() -> dict[str, Any]:
 
     metrics = {
         "best_model": best_model_name,
+        "model_selection": {
+            "method": "lazypredict_on_train_validation_split",
+            "validation_size": LAZYPREDICT_VAL_SIZE,
+            "tree_based_filter": TREE_BASED_MODELS,
+            "default_fallback": DEFAULT_TREE_MODEL,
+        },
         "lazypredict_top5": lazy_results.head(5).reset_index().to_dict(orient="records"),
         "cross_validation": cv_metrics,
         "test_metrics": {
