@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from typing import Callable
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -45,7 +45,7 @@ def explain_instance_lime(
     explainer: LimeTabularExplainer,
     instance_df: pd.DataFrame,
     label_index: int,
-    predict_fn: Callable[[np.ndarray], np.ndarray] | None = None,
+    predict_fn: Callable | None = None,
 ) -> Figure:
     """Tek bir örnek için LIME açıklama grafiği oluşturur.
 
@@ -61,11 +61,11 @@ def explain_instance_lime(
         Streamlit'te ``st.pyplot(fig)`` ile gösterilebilecek matplotlib Figure.
     """
     instance = instance_df[FEATURE_COLUMNS].iloc[0].values
-    predict_fn = predict_fn or pipeline.predict_proba
+    fn = predict_fn if predict_fn is not None else pipeline.predict_proba
 
     explanation = explainer.explain_instance(
         data_row=instance,
-        predict_fn=predict_fn,
+        predict_fn=fn,
         labels=[label_index],
         num_features=len(FEATURE_COLUMNS),
     )

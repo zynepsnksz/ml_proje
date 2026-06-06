@@ -22,35 +22,23 @@ from src.explainability.lime_analysis import create_lime_explainer, explain_inst
 from src.explainability.shap_analysis import plot_local_waterfall
 from src.models.predict import predict_top3
 
-SCENARIOS = {
-    "rice": {
-        "N": 90,
-        "P": 42,
-        "K": 43,
-        "temperature": 23.6,
-        "humidity": 82.2,
-        "ph": 6.5,
-        "rainfall": 236.1,
-    },
-    "apple": {
-        "N": 20,
-        "P": 125,
-        "K": 200,
-        "temperature": 22.3,
-        "humidity": 92.3,
-        "ph": 5.9,
-        "rainfall": 112.9,
-    },
-    "cotton": {
-        "N": 120,
-        "P": 40,
-        "K": 20,
-        "temperature": 23.9,
-        "humidity": 79.8,
-        "ph": 6.9,
-        "rainfall": 80.7,
-    },
-}
+@st.cache_data
+def load_all_crop_scenarios() -> dict[str, dict[str, float]]:
+    """Veri setindeki tüm mahsullerin ideal (ortalama) değerlerini dinamik hesaplar."""
+    df = load_data()
+    means = df.groupby("label")[FEATURE_COLUMNS].mean()
+    scenarios = {}
+    for crop in means.index:
+        scenarios[crop] = {col: float(means.loc[crop, col]) for col in FEATURE_COLUMNS}
+    return scenarios
+
+
+def _on_scenario_change(scenarios: dict[str, dict[str, float]]) -> None:
+    """Seçilen senaryo değerlerini slider durumlarına uygular."""
+    selected = st.session_state["selected_scenario"]
+    if selected != "--- Seçin ---":
+        crop_key = selected.lower()
+        _apply_scenario(scenarios[crop_key])
 
 SLIDER_DEFAULTS = {
     "N": 50,
@@ -154,12 +142,92 @@ def main() -> None:
     st.markdown(
         """
         <style>
-        .block-container { padding-top: 1.5rem; padding-bottom: 2rem; }
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+        
+        .block-container { 
+            padding-top: 1.5rem; 
+            padding-bottom: 2rem;
+            font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        
         div[data-testid="stMetric"] {
             background: linear-gradient(135deg, #f0fff4 0%, #e8f8ef 100%);
             border: 1px solid #b7e4c7;
             padding: 1rem;
             border-radius: 12px;
+        }
+        
+        /* İdeal Değer Kartları Tasarımı */
+        .ideal-values-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 15px;
+            margin-bottom: 25px;
+        }
+        
+        .ideal-val-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 18px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            border-top: 4px solid #cbd5e1;
+        }
+        
+        .ideal-val-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 20px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
+        }
+        
+        .npk-card {
+            border-top: 4px solid #10b981; /* Canlı yeşil accent */
+        }
+        .npk-card:hover {
+            border-color: #059669;
+            box-shadow: 0 12px 20px -3px rgba(16, 185, 129, 0.12), 0 4px 6px -2px rgba(16, 185, 129, 0.04);
+        }
+        
+        .env-card {
+            border-top: 4px solid #3b82f6; /* Canlı mavi accent */
+        }
+        .env-card:hover {
+            border-color: #2563eb;
+            box-shadow: 0 12px 20px -3px rgba(59, 130, 246, 0.12), 0 4px 6px -2px rgba(59, 130, 246, 0.04);
+        }
+        
+        .card-icon {
+            font-size: 1.75rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .card-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            margin-bottom: 6px;
+        }
+        
+        .card-value {
+            font-size: 1.85rem;
+            font-weight: 700;
+            color: #0f172a;
+            margin-bottom: 8px;
+            line-height: 1.2;
+        }
+        
+        .card-desc {
+            font-size: 0.75rem;
+            color: #64748b;
+            line-height: 1.4;
+            margin-top: auto;
         }
         </style>
         """,
@@ -173,6 +241,7 @@ def main() -> None:
     )
 
     _init_session_state()
+    scenarios = load_all_crop_scenarios()
 
     try:
         bounds = load_feature_bounds()
@@ -216,16 +285,16 @@ def main() -> None:
         )
 
         st.markdown("---")
-        st.subheader("Hızlı Test Senaryoları")
-        if st.button("🌾 Rice (Çeltik) Senaryosu", use_container_width=True):
-            _apply_scenario(SCENARIOS["rice"])
-            st.rerun()
-        if st.button("🍎 Apple (Elma) Senaryosu", use_container_width=True):
-            _apply_scenario(SCENARIOS["apple"])
-            st.rerun()
-        if st.button("🧵 Cotton (Pamuk) Senaryosu", use_container_width=True):
-            _apply_scenario(SCENARIOS["cotton"])
-            st.rerun()
+        st.subheader("Bitki Referans Şablonları")
+        crop_list = sorted(list(scenarios.keys()))
+        
+        st.selectbox(
+            "Saha Değerlerini Bitkinin İdeal Ortalama Koşullarına Ayarla:",
+            ["--- Seçin ---"] + [crop.title() for crop in crop_list],
+            key="selected_scenario",
+            on_change=_on_scenario_change,
+            args=(scenarios,),
+        )
 
     try:
         artifact = load_artifact()
@@ -257,6 +326,66 @@ def main() -> None:
     bar_fig = _plot_top3_bar(top3)
     st.pyplot(bar_fig)
     plt.close(bar_fig)
+
+    # Seçilen senaryonun ideal referans değerlerini kutular halinde göster
+    selected = st.session_state.get("selected_scenario", "--- Seçin ---")
+    if selected != "--- Seçin ---":
+        st.markdown("---")
+        st.subheader(f"🌾 {selected} İdeal Yetişme Koşulları (Veri Seti Referans Değerleri)")
+        st.markdown(
+            "Seçtiğiniz bitkinin veri setindeki ideal (ortalama) koşulları aşağıdaki bilgi kartlarında gösterilmektedir. "
+            "Sol taraftaki panelden kendi ölçümlerinizi girerek ideal değerlerle karşılaştırabilir ve model tahminini gözlemleyebilirsiniz:"
+        )
+        crop_key = selected.lower()
+        ideal_vals = scenarios[crop_key]
+        
+        html_content = f"""
+        <div class="ideal-values-grid">
+            <div class="ideal-val-card npk-card">
+                <div class="card-icon">🧪</div>
+                <div class="card-title">İdeal Azot (N)</div>
+                <div class="card-value">{ideal_vals['N']:.1f}</div>
+                <div class="card-desc">Yaprak gelişimi ve klorofil sentezi için ana besin elementidir.</div>
+            </div>
+            <div class="ideal-val-card npk-card">
+                <div class="card-icon">🌾</div>
+                <div class="card-title">İdeal Fosfor (P)</div>
+                <div class="card-value">{ideal_vals['P']:.1f}</div>
+                <div class="card-desc">Kök gelişimi, çiçeklenme ve enerji metabolizması için kritiktir.</div>
+            </div>
+            <div class="ideal-val-card npk-card">
+                <div class="card-icon">🛡️</div>
+                <div class="card-title">İdeal Potasyum (K)</div>
+                <div class="card-value">{ideal_vals['K']:.1f}</div>
+                <div class="card-desc">Su dengesini, ozmotik basıncı ve hastalıklara karşı dayanıklılığı yönetir.</div>
+            </div>
+            <div class="ideal-val-card env-card">
+                <div class="card-icon">🌡️</div>
+                <div class="card-title">İdeal Sıcaklık</div>
+                <div class="card-value">{ideal_vals['temperature']:.1f} °C</div>
+                <div class="card-desc">Enzimatik reaksiyonlar ve fotosentez verimi için en uygun çevre sıcaklığıdır.</div>
+            </div>
+            <div class="ideal-val-card env-card">
+                <div class="card-icon">💧</div>
+                <div class="card-title">İdeal Nem</div>
+                <div class="card-value">% {ideal_vals['humidity']:.1f}</div>
+                <div class="card-desc">Havadaki nem oranı; bitkinin su kaybetme (terleme) hızını belirler.</div>
+            </div>
+            <div class="ideal-val-card env-card">
+                <div class="card-icon">📈</div>
+                <div class="card-title">İdeal pH</div>
+                <div class="card-value">{ideal_vals['ph']:.1f}</div>
+                <div class="card-desc">Toprak asitliği; bitki köklerinin besinleri emebilme kapasitesini kontrol eder.</div>
+            </div>
+            <div class="ideal-val-card env-card">
+                <div class="card-icon">🌧️</div>
+                <div class="card-title">İdeal Yağış</div>
+                <div class="card-value">{ideal_vals['rainfall']:.1f} mm</div>
+                <div class="card-desc">Bitkinin mevsimsel/yıllık olarak ihtiyaç duyduğu ideal su kaynağı miktarıdır.</div>
+            </div>
+        </div>
+        """
+        st.markdown(html_content, unsafe_allow_html=True)
 
     st.markdown("---")
     st.subheader("🔍 Yapay Zeka Karar Açıklamaları (XAI)")

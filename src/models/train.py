@@ -25,7 +25,7 @@ from sklearn.metrics import (
     roc_auc_score,
     roc_curve,
 )
-from sklearn.model_selection import StratifiedKFold, cross_validate, learning_curve, train_test_split
+from sklearn.model_selection import RandomizedSearchCV, StratifiedKFold, cross_validate, learning_curve, train_test_split
 from sklearn.preprocessing import StandardScaler, label_binarize
 
 from src.config import (
@@ -64,6 +64,12 @@ TREE_BASED_MODELS = [
 ]
 DEFAULT_TREE_MODEL = "RandomForestClassifier"
 LAZYPREDICT_VAL_SIZE = 0.2
+PARAM_DIST = {
+    "classifier__n_estimators": [50, 100, 200],
+    "classifier__max_depth": [5, 10, 15, None],
+    "classifier__min_samples_split": [2, 5, 10],
+    "classifier__min_samples_leaf": [1, 2, 4],
+}
 
 
 def _ensure_output_dir() -> None:
@@ -122,6 +128,31 @@ def select_best_model_with_lazypredict(
     results = results.sort_values("Accuracy", ascending=False)
     best_model_name = _select_tree_model(results)
     return best_model_name, results
+
+
+def tune_hyperparameters(
+    pipeline,
+    X_train: pd.DataFrame,
+    y_train: np.ndarray,
+) -> tuple[Any, dict[str, Any]]:
+    """RandomizedSearchCV ile pipeline hiperparametrelerini optimize eder."""
+    cv = StratifiedKFold(n_splits=CV_FOLDS, shuffle=True, random_state=RANDOM_STATE)
+    search = RandomizedSearchCV(
+        estimator=pipeline,
+        param_distributions=PARAM_DIST,
+        n_iter=10,
+        cv=cv,
+        scoring="accuracy",
+        random_state=RANDOM_STATE,
+        n_jobs=-1,
+    )
+    search.fit(X_train, y_train)
+
+    best_params = {
+        key: (None if value is None else int(value) if isinstance(value, np.integer) else value)
+        for key, value in search.best_params_.items()
+    }
+    return search.best_estimator_, best_params
 
 
 def cross_validate_model(
@@ -463,7 +494,7 @@ def train() -> dict[str, Any]:
 
     classifier = create_classifier(best_model_name, random_state=RANDOM_STATE)
     pipeline = build_pipeline(classifier)
-    pipeline.fit(X_train, y_train_enc)
+    pipeline, best_params = tune_hyperparameters(pipeline, X_train, y_train_enc)
 
     cv_metrics = cross_validate_model(pipeline, X_train, y_train_enc)
     train_eval = evaluate_on_split(pipeline, X_train, y_train_enc, label_encoder, split_name="train")
@@ -505,6 +536,7 @@ def train() -> dict[str, Any]:
 
     metrics: dict[str, Any] = {
         "best_model": best_model_name,
+        "best_params": best_params,
         "model_selection": {
             "method": "lazypredict_on_train_validation_split",
             "validation_size": LAZYPREDICT_VAL_SIZE,
