@@ -10,7 +10,129 @@
       "XGBClassifier",
       "LGBMClassifier"
     ],
-    "default_fallback": "RandomForestClassifier"
+    "default_fallback": "RandomForestClassifier",
+    "rationale": "Ağaç tabanlı modeller SHAP TreeExplainer ile uyumludur. GaussianNB/QDA validation'da eşit/üstün olsa da XAI trade-off nedeniyle elenir."
+  },
+  "split_report": {
+    "total_train": 1760,
+    "total_test": 440,
+    "per_class": [
+      {
+        "label": "apple",
+        "train": 80,
+        "test": 20
+      },
+      {
+        "label": "banana",
+        "train": 80,
+        "test": 20
+      },
+      {
+        "label": "blackgram",
+        "train": 80,
+        "test": 20
+      },
+      {
+        "label": "chickpea",
+        "train": 80,
+        "test": 20
+      },
+      {
+        "label": "coconut",
+        "train": 80,
+        "test": 20
+      },
+      {
+        "label": "coffee",
+        "train": 80,
+        "test": 20
+      },
+      {
+        "label": "cotton",
+        "train": 80,
+        "test": 20
+      },
+      {
+        "label": "grapes",
+        "train": 80,
+        "test": 20
+      },
+      {
+        "label": "jute",
+        "train": 80,
+        "test": 20
+      },
+      {
+        "label": "kidneybeans",
+        "train": 80,
+        "test": 20
+      },
+      {
+        "label": "lentil",
+        "train": 80,
+        "test": 20
+      },
+      {
+        "label": "maize",
+        "train": 80,
+        "test": 20
+      },
+      {
+        "label": "mango",
+        "train": 80,
+        "test": 20
+      },
+      {
+        "label": "mothbeans",
+        "train": 80,
+        "test": 20
+      },
+      {
+        "label": "mungbean",
+        "train": 80,
+        "test": 20
+      },
+      {
+        "label": "muskmelon",
+        "train": 80,
+        "test": 20
+      },
+      {
+        "label": "orange",
+        "train": 80,
+        "test": 20
+      },
+      {
+        "label": "papaya",
+        "train": 80,
+        "test": 20
+      },
+      {
+        "label": "pigeonpeas",
+        "train": 80,
+        "test": 20
+      },
+      {
+        "label": "pomegranate",
+        "train": 80,
+        "test": 20
+      },
+      {
+        "label": "rice",
+        "train": 80,
+        "test": 20
+      },
+      {
+        "label": "watermelon",
+        "train": 80,
+        "test": 20
+      }
+    ]
+  },
+  "baseline_dummy_classifier": {
+    "accuracy": 0.045454545454545456,
+    "balanced_accuracy": 0.045454545454545456,
+    "f1_macro": 0.003952569169960474
   },
   "lazypredict_top5": [
     {
@@ -21,17 +143,7 @@
       "F1 Score": 0.9942959001782531,
       "Precision": 0.9949494949494949,
       "Recall": 0.9943181818181818,
-      "Time Taken": 0.026249408721923828
-    },
-    {
-      "Model": "QuadraticDiscriminantAnalysis",
-      "Accuracy": 0.9943181818181818,
-      "Balanced Accuracy": 0.9943181818181818,
-      "ROC AUC": 0.9999492694805195,
-      "F1 Score": 0.9942959001782531,
-      "Precision": 0.9949494949494949,
-      "Recall": 0.9943181818181818,
-      "Time Taken": 0.023723602294921875
+      "Time Taken": 0.02739548683166504
     },
     {
       "Model": "RandomForestClassifier",
@@ -41,7 +153,17 @@
       "F1 Score": 0.9943181818181818,
       "Precision": 0.9943181818181818,
       "Recall": 0.9943181818181818,
-      "Time Taken": 0.24854016304016113
+      "Time Taken": 0.3200674057006836
+    },
+    {
+      "Model": "QuadraticDiscriminantAnalysis",
+      "Accuracy": 0.9943181818181818,
+      "Balanced Accuracy": 0.9943181818181818,
+      "ROC AUC": 0.9999492694805195,
+      "F1 Score": 0.9942959001782531,
+      "Precision": 0.9949494949494949,
+      "Recall": 0.9943181818181818,
+      "Time Taken": 0.028641462326049805
     },
     {
       "Model": "BaggingClassifier",
@@ -51,50 +173,797 @@
       "F1 Score": 0.9914522140501095,
       "Precision": 0.9922756981580512,
       "Recall": 0.9914772727272727,
-      "Time Taken": 0.09176135063171387
+      "Time Taken": 0.0991511344909668
     },
     {
-      "Model": "XGBClassifier",
-      "Accuracy": 0.9914772727272727,
-      "Balanced Accuracy": 0.9914772727272727,
-      "ROC AUC": 0.9999577245670995,
-      "F1 Score": 0.9914689416155692,
-      "Precision": 0.9916221033868093,
-      "Recall": 0.9914772727272727,
-      "Time Taken": 0.5269274711608887
+      "Model": "ExtraTreesClassifier",
+      "Accuracy": 0.9886363636363636,
+      "Balanced Accuracy": 0.9886363636363636,
+      "ROC AUC": 0.9999239042207791,
+      "F1 Score": 0.9884297520661157,
+      "Precision": 0.9887318563789151,
+      "Recall": 0.9886363636363636,
+      "Time Taken": 0.22105169296264648
     }
   ],
   "cross_validation": {
     "accuracy": {
-      "mean": 0.9926136363636363,
-      "std": 0.005849789852833542
+      "train_mean": 1.0,
+      "train_std": 0.0,
+      "test_mean": 0.9926136363636363,
+      "test_std": 0.005849789852833542
     },
     "precision": {
-      "mean": 0.9934165181224005,
-      "std": 0.00490452047899412
+      "train_mean": 1.0,
+      "train_std": 0.0,
+      "test_mean": 0.9934165181224005,
+      "test_std": 0.00490452047899412
     },
     "recall": {
-      "mean": 0.9926136363636363,
-      "std": 0.005849789852833542
+      "train_mean": 1.0,
+      "train_std": 0.0,
+      "test_mean": 0.9926136363636363,
+      "test_std": 0.005849789852833542
     },
     "f1": {
-      "mean": 0.9925658716343554,
-      "std": 0.005917705222470937
+      "train_mean": 1.0,
+      "train_std": 0.0,
+      "test_mean": 0.9925658716343554,
+      "test_std": 0.005917705222470937
     }
+  },
+  "train_metrics": {
+    "accuracy": 1.0,
+    "balanced_accuracy": 1.0,
+    "precision_macro": 1.0,
+    "recall_macro": 1.0,
+    "f1_macro": 1.0
   },
   "test_metrics": {
     "accuracy": 0.9954545454545455,
+    "balanced_accuracy": 0.9954545454545454,
     "precision_macro": 0.9956709956709957,
     "recall_macro": 0.9954545454545454,
     "f1_macro": 0.9954517027687758,
     "roc_auc_ovr_macro": 0.9999945887445887,
     "roc_auc_ovr_weighted": 0.9999945887445888
   },
+  "train_test_gap": {
+    "accuracy": 0.004545454545454519,
+    "f1_macro": 0.004548297231224185
+  },
+  "learning_curve": {
+    "final_train_mean": 1.0,
+    "final_cv_mean": 0.9960227272727271,
+    "gap": 0.003977272727272885
+  },
+  "classification_report": {
+    "apple": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 20.0
+    },
+    "banana": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 20.0
+    },
+    "blackgram": {
+      "precision": 1.0,
+      "recall": 0.95,
+      "f1-score": 0.9743589743589743,
+      "support": 20.0
+    },
+    "chickpea": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 20.0
+    },
+    "coconut": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 20.0
+    },
+    "coffee": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 20.0
+    },
+    "cotton": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 20.0
+    },
+    "grapes": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 20.0
+    },
+    "jute": {
+      "precision": 0.9523809523809523,
+      "recall": 1.0,
+      "f1-score": 0.975609756097561,
+      "support": 20.0
+    },
+    "kidneybeans": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 20.0
+    },
+    "lentil": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 20.0
+    },
+    "maize": {
+      "precision": 0.9523809523809523,
+      "recall": 1.0,
+      "f1-score": 0.975609756097561,
+      "support": 20.0
+    },
+    "mango": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 20.0
+    },
+    "mothbeans": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 20.0
+    },
+    "mungbean": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 20.0
+    },
+    "muskmelon": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 20.0
+    },
+    "orange": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 20.0
+    },
+    "papaya": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 20.0
+    },
+    "pigeonpeas": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 20.0
+    },
+    "pomegranate": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 20.0
+    },
+    "rice": {
+      "precision": 1.0,
+      "recall": 0.95,
+      "f1-score": 0.9743589743589743,
+      "support": 20.0
+    },
+    "watermelon": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 20.0
+    },
+    "accuracy": 0.9954545454545455,
+    "macro avg": {
+      "precision": 0.9956709956709957,
+      "recall": 0.9954545454545454,
+      "f1-score": 0.9954517027687758,
+      "support": 440.0
+    },
+    "weighted avg": {
+      "precision": 0.9956709956709956,
+      "recall": 0.9954545454545455,
+      "f1-score": 0.9954517027687759,
+      "support": 440.0
+    }
+  },
+  "confusion_matrix": [
+    [
+      20,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      20,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      19,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      20,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      20,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      20,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      20,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      20,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      20,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      20,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      20,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      20,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      20,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      20,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      20,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      20,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      20,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      20,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      20,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      20,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      19,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      20
+    ]
+  ],
+  "misclassification_analysis": {
+    "total_errors": 2,
+    "total_samples": 440,
+    "error_rate": 0.004545454545454545,
+    "top_confusion_pairs": [
+      {
+        "actual": "blackgram",
+        "predicted": "maize",
+        "count": 1
+      },
+      {
+        "actual": "rice",
+        "predicted": "jute",
+        "count": 1
+      }
+    ]
+  },
+  "lowest_roc_auc_classes": [
+    {
+      "class": "jute",
+      "roc_auc": 0.9998809523809524
+    },
+    {
+      "class": "apple",
+      "roc_auc": 1.0
+    },
+    {
+      "class": "banana",
+      "roc_auc": 1.0
+    }
+  ],
+  "feature_importance": {
+    "N": 0.09636333302406673,
+    "P": 0.1508498667073542,
+    "K": 0.17539256542455192,
+    "temperature": 0.07237530192534172,
+    "humidity": 0.22422658789267352,
+    "ph": 0.050608119279420875,
+    "rainfall": 0.2301842257465911
+  },
   "artifacts": {
-    "model_path": "C:\\Users\\zeysi\\OneDrive\\Masaüstü\\ml_proje\\models\\best_model.pkl",
-    "metrics_path": "C:\\Users\\zeysi\\OneDrive\\Masaüstü\\ml_proje\\outputs\\metrics.json",
-    "confusion_matrix_path": "C:\\Users\\zeysi\\OneDrive\\Masaüstü\\ml_proje\\outputs\\confusion_matrix.png",
-    "roc_curve_path": "C:\\Users\\zeysi\\OneDrive\\Masaüstü\\ml_proje\\outputs\\roc_curve_ovr.png",
-    "lazypredict_path": "C:\\Users\\zeysi\\OneDrive\\Masaüstü\\ml_proje\\outputs\\lazypredict_results.csv"
+    "model_path": "models\\best_model.pkl",
+    "metrics_path": "outputs\\metrics.json",
+    "confusion_matrix_path": "outputs\\confusion_matrix.png",
+    "confusion_matrix_normalized_path": "outputs\\confusion_matrix_normalized.png",
+    "roc_curve_path": "outputs\\roc_curve_ovr.png",
+    "learning_curve_path": "outputs\\learning_curve.png",
+    "feature_importance_path": "outputs\\feature_importance.png",
+    "shap_summary_path": "outputs\\shap_summary.png",
+    "model_comparison_path": "outputs\\model_comparison.png",
+    "lazypredict_path": "outputs\\lazypredict_results.csv"
   }
 }

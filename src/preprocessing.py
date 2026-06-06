@@ -17,7 +17,7 @@ def fit_label_encoder(y) -> LabelEncoder:
 
 def encode_labels(encoder: LabelEncoder, y) -> list[int]:
     """String etiketleri sayısal forma çevirir."""
-    return encoder.transform(y)
+    return encoder.transform(y).tolist()
 
 
 def decode_labels(encoder: LabelEncoder, y_encoded) -> list[str]:

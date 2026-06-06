@@ -17,6 +17,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from src.config import FEATURE_COLUMNS, MODEL_PATH
 from src.data.loader import get_feature_target, load_data, split_data
+from src.explainability.shap_analysis import supports_tree_explainer
 from src.explainability.lime_analysis import create_lime_explainer, explain_instance_lime
 from src.explainability.shap_analysis import plot_local_waterfall
 from src.models.predict import predict_top3
@@ -76,8 +77,25 @@ def _apply_scenario(scenario: dict[str, float]) -> None:
 
 
 @st.cache_resource
+def load_feature_bounds() -> dict[str, tuple[float, float]]:
+    """Slider sınırlarını eğitim verisi quantile'larından türetir."""
+    df = load_data()
+    bounds = {}
+    for col in FEATURE_COLUMNS:
+        lo = float(df[col].quantile(0.01))
+        hi = float(df[col].quantile(0.99))
+        bounds[col] = (lo, hi)
+    return bounds
+
+
+@st.cache_resource
 def load_artifact() -> dict:
     """Model artifact'ini bir kez yükler."""
+    if not MODEL_PATH.exists():
+        raise FileNotFoundError(
+            f"Model dosyası bulunamadı: {MODEL_PATH}\n"
+            "Önce `python -m src.models.train` komutunu çalıştırın."
+        )
     return joblib.load(MODEL_PATH)
 
 
@@ -156,16 +174,46 @@ def main() -> None:
 
     _init_session_state()
 
+    try:
+        bounds = load_feature_bounds()
+    except FileNotFoundError as exc:
+        st.error(str(exc))
+        st.stop()
+
     with st.sidebar:
         st.header("Saha Ölçüm Değerleri")
 
-        st.slider("Azot (N)", min_value=0, max_value=150, key="N")
-        st.slider("Fosfor (P)", min_value=5, max_value=150, key="P")
-        st.slider("Potasyum (K)", min_value=5, max_value=210, key="K")
-        st.slider("Sıcaklık (Temp °C)", min_value=8.0, max_value=45.0, step=0.1, key="temperature")
-        st.slider("Nem (%)", min_value=10.0, max_value=100.0, step=0.1, key="humidity")
-        st.slider("pH (Toprak Asitliği)", min_value=3.5, max_value=9.9, step=0.1, key="ph")
-        st.slider("Yağış (Rainfall mm)", min_value=20.0, max_value=300.0, step=0.1, key="rainfall")
+        st.slider("Azot (N)", min_value=int(bounds["N"][0]), max_value=int(bounds["N"][1]), key="N")
+        st.slider("Fosfor (P)", min_value=int(bounds["P"][0]), max_value=int(bounds["P"][1]), key="P")
+        st.slider("Potasyum (K)", min_value=int(bounds["K"][0]), max_value=int(bounds["K"][1]), key="K")
+        st.slider(
+            "Sıcaklık (Temp °C)",
+            min_value=float(bounds["temperature"][0]),
+            max_value=float(bounds["temperature"][1]),
+            step=0.1,
+            key="temperature",
+        )
+        st.slider(
+            "Nem (%)",
+            min_value=float(bounds["humidity"][0]),
+            max_value=float(bounds["humidity"][1]),
+            step=0.1,
+            key="humidity",
+        )
+        st.slider(
+            "pH (Toprak Asitliği)",
+            min_value=float(bounds["ph"][0]),
+            max_value=float(bounds["ph"][1]),
+            step=0.1,
+            key="ph",
+        )
+        st.slider(
+            "Yağış (Rainfall mm)",
+            min_value=float(bounds["rainfall"][0]),
+            max_value=float(bounds["rainfall"][1]),
+            step=0.1,
+            key="rainfall",
+        )
 
         st.markdown("---")
         st.subheader("Hızlı Test Senaryoları")
@@ -179,7 +227,12 @@ def main() -> None:
             _apply_scenario(SCENARIOS["cotton"])
             st.rerun()
 
-    artifact = load_artifact()
+    try:
+        artifact = load_artifact()
+    except FileNotFoundError as exc:
+        st.error(str(exc))
+        st.stop()
+
     pipeline = artifact["pipeline"]
     label_encoder = artifact["label_encoder"]
     lime_explainer = load_lime_explainer(artifact)
@@ -214,9 +267,15 @@ def main() -> None:
         st.markdown(
             "SHAP, modelin tahminine her özelliğin ne kadar katkı sağladığını gösterir."
         )
-        shap_fig = plot_local_waterfall(pipeline, instance_df, label_index, label_encoder)
-        st.pyplot(shap_fig)
-        plt.close(shap_fig)
+        if supports_tree_explainer(pipeline):
+            shap_fig = plot_local_waterfall(pipeline, instance_df, label_index, label_encoder)
+            st.pyplot(shap_fig)
+            plt.close(shap_fig)
+        else:
+            st.warning(
+                "Seçilen model SHAP TreeExplainer ile uyumlu değil. "
+                "KernelExplainer veya Permutation Importance kullanılmalıdır."
+            )
 
     with tab_lime:
         st.markdown(
