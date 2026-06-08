@@ -12,7 +12,8 @@ pip install -r requirements.txt
 
 1. `notebooks/01_eda.ipynb` — EDA (14 grafik → `report/assets/`)
 2. `python -m src.models.train` — Model eğitimi, metrikler ve grafikler → `outputs/`
-3. `streamlit run app/streamlit_app.py` — Demo uygulama (Top-3 + SHAP + LIME)
+3. `python -m src.validation.robustness_checks` — Permutation test + multi-seed hold-out (→ `outputs/robustness_checks.json`)
+4. `streamlit run app/streamlit_app.py` — Demo uygulama (Top-3 + SHAP + LIME)
 
 Tek komut (eğitim + doğrulama):
 
@@ -34,6 +35,7 @@ ml_proje/
 │   ├── data/
 │   ├── preprocessing.py
 │   ├── models/
+│   ├── validation/
 │   └── explainability/
 ├── app/                    # Streamlit demo
 ├── models/                 # best_model.pkl
@@ -72,6 +74,20 @@ Seçilen en iyi model için **RandomizedSearchCV** kullanılarak modele özel di
 | `report/FINAL_REPORT.md` | Akademik final raporu |
 | `models/best_model.pkl` | Pipeline + LabelEncoder + metadata |
 | `outputs/metrics.json` | Tüm metrikler ve hata analizi |
+| `src/validation/robustness_checks.py` | Permutation test + multi-seed hold-out analizi |
+
+## Sağlamlık Analizleri
+
+Ana modeli (`models/best_model.pkl`) değiştirmeden çalışır:
+
+```bash
+python -m src.validation.robustness_checks
+```
+
+- **Permutation test:** `random_state=42` split üzerinde gerçek etiketler vs karıştırılmış etiketler; karıştırılmış durumda skorun ≈ 1/22 ≈ 0.045 şans düzeyine inmesi beklenir.
+- **Multi-seed hold-out:** `[42, 123, 777, 2026, 3407]` seed'leriyle stratified split; test accuracy ve f1_macro ortalama ± std.
+
+Çıktılar: `outputs/robustness_checks.json`, `outputs/robustness_checks.csv`
 
 ## Çıktılar (`outputs/`)
 
@@ -86,6 +102,8 @@ Seçilen en iyi model için **RandomizedSearchCV** kullanılarak modele özel di
 | `shap_summary.png` | Global SHAP summary |
 | `model_comparison.png` | LazyPredict top-10 |
 | `lazypredict_results.csv` | Tüm model karşılaştırması |
+| `robustness_checks.json` | Permutation + multi-seed sonuçları ve yorum |
+| `robustness_checks.csv` | Aynı sonuçların tablo formatı |
 
 ## Testler
 

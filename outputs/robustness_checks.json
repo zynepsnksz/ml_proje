@@ -1,0 +1,83 @@
+{
+  "generated_at": "2026-06-08T14:55:57.391722+00:00",
+  "classifier": "RandomForestClassifier",
+  "best_params": {
+    "classifier__n_estimators": 400,
+    "classifier__min_samples_split": 15,
+    "classifier__min_samples_leaf": 1,
+    "classifier__max_features": "log2",
+    "classifier__max_depth": null
+  },
+  "permutation_test": {
+    "split_random_state": 42,
+    "permutation_label_seed": 42,
+    "n_classes": 22,
+    "chance_baseline_accuracy": 0.045454545454545456,
+    "chance_baseline_f1_macro": 0.045454545454545456,
+    "classifier": "RandomForestClassifier",
+    "real_labels": {
+      "accuracy": 0.9863636363636363,
+      "f1_macro": 0.986407124346207
+    },
+    "permuted_labels": {
+      "accuracy": 0.022727272727272728,
+      "f1_macro": 0.021233508097522898
+    },
+    "delta_accuracy": 0.9636363636363636,
+    "delta_f1_macro": 0.9651736162486841
+  },
+  "multi_seed_holdout": {
+    "seeds": [
+      42,
+      123,
+      777,
+      2026,
+      3407
+    ],
+    "classifier": "RandomForestClassifier",
+    "per_seed": [
+      {
+        "seed": 42,
+        "train_size": 1760,
+        "test_size": 440,
+        "accuracy": 0.9863636363636363,
+        "f1_macro": 0.986407124346207
+      },
+      {
+        "seed": 123,
+        "train_size": 1760,
+        "test_size": 440,
+        "accuracy": 0.9931818181818182,
+        "f1_macro": 0.9931432489572025
+      },
+      {
+        "seed": 777,
+        "train_size": 1760,
+        "test_size": 440,
+        "accuracy": 1.0,
+        "f1_macro": 1.0
+      },
+      {
+        "seed": 2026,
+        "train_size": 1760,
+        "test_size": 440,
+        "accuracy": 0.9863636363636363,
+        "f1_macro": 0.9863813400398768
+      },
+      {
+        "seed": 3407,
+        "train_size": 1760,
+        "test_size": 440,
+        "accuracy": 0.9977272727272727,
+        "f1_macro": 0.997725851384388
+      }
+    ],
+    "summary": {
+      "accuracy_mean": 0.9927272727272728,
+      "accuracy_std": 0.005640760748177669,
+      "f1_macro_mean": 0.992731512945535,
+      "f1_macro_std": 0.0056261253831229
+    }
+  },
+  "commentary": "Permutation test: gercek etiketlerle accuracy=0.9864, f1_macro=0.9864; karistirilmis etiketlerle accuracy=0.0227, f1_macro=0.0212 (sans duzeyi ~ 0.0455). Gercek X-y iliskisi bozuldugunda skor sans seviyesine iniyor; model anlamli sinyal ogreniyor. Multi-seed hold-out (5 seed): accuracy=0.9927 +/- 0.0056, f1_macro=0.9927 +/- 0.0056; performans split secimine karsi kararli."
+}
