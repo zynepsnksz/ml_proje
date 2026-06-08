@@ -30,3 +30,28 @@ def test_split_data_stratified():
     test_counts = y_test.value_counts()
     assert train_counts.min() == 80
     assert test_counts.min() == 20
+
+
+def test_validate_inputs():
+    from src.data.loader import validate_inputs
+    import pytest
+    
+    # Valid input DataFrame
+    valid_df = pd.DataFrame([{
+        "N": 50, "P": 40, "K": 30, "temperature": 25.0, "humidity": 80.0, "ph": 6.5, "rainfall": 200.0
+    }])
+    assert validate_inputs(valid_df) is True
+    
+    # Invalid N < 0
+    invalid_n = pd.DataFrame([{
+        "N": -10, "P": 40, "K": 30, "temperature": 25.0, "humidity": 80.0, "ph": 6.5, "rainfall": 200.0
+    }])
+    with pytest.raises(ValueError, match="Azot"):
+        validate_inputs(invalid_n)
+        
+    # Invalid pH > 14
+    invalid_ph = pd.DataFrame([{
+        "N": 50, "P": 40, "K": 30, "temperature": 25.0, "humidity": 80.0, "ph": 15.0, "rainfall": 200.0
+    }])
+    with pytest.raises(ValueError, match="pH"):
+        validate_inputs(invalid_ph)

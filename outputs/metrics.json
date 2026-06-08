@@ -1,10 +1,11 @@
 {
-  "best_model": "RandomForestClassifier",
+  "best_model": "LGBMClassifier",
   "best_params": {
-    "classifier__n_estimators": 200,
-    "classifier__min_samples_split": 10,
-    "classifier__min_samples_leaf": 1,
-    "classifier__max_depth": 15
+    "classifier__subsample": 0.9,
+    "classifier__num_leaves": 63,
+    "classifier__n_estimators": 300,
+    "classifier__max_depth": 3,
+    "classifier__learning_rate": 0.1
   },
   "model_selection": {
     "method": "lazypredict_on_train_validation_split",
@@ -142,80 +143,80 @@
   },
   "lazypredict_top5": [
     {
-      "Model": "GaussianNB",
-      "Accuracy": 0.9943181818181818,
-      "Balanced Accuracy": 0.9943181818181818,
-      "ROC AUC": 0.9999661796536795,
-      "F1 Score": 0.9942959001782531,
-      "Precision": 0.9949494949494949,
-      "Recall": 0.9943181818181818,
-      "Time Taken": 0.018580198287963867
-    },
-    {
-      "Model": "QuadraticDiscriminantAnalysis",
-      "Accuracy": 0.9943181818181818,
-      "Balanced Accuracy": 0.9943181818181818,
-      "ROC AUC": 0.9999492694805195,
-      "F1 Score": 0.9942959001782531,
-      "Precision": 0.9949494949494949,
-      "Recall": 0.9943181818181818,
-      "Time Taken": 0.022864341735839844
-    },
-    {
-      "Model": "RandomForestClassifier",
-      "Accuracy": 0.9943181818181818,
-      "Balanced Accuracy": 0.9943181818181818,
-      "ROC AUC": 0.9999788622835498,
-      "F1 Score": 0.9943181818181818,
-      "Precision": 0.9943181818181818,
-      "Recall": 0.9943181818181818,
-      "Time Taken": 0.2327747344970703
-    },
-    {
-      "Model": "BaggingClassifier",
-      "Accuracy": 0.9914772727272727,
-      "Balanced Accuracy": 0.9914772727272727,
-      "ROC AUC": 0.9998774012445888,
-      "F1 Score": 0.9914522140501095,
-      "Precision": 0.9922756981580512,
-      "Recall": 0.9914772727272727,
-      "Time Taken": 0.1324617862701416
-    },
-    {
-      "Model": "XGBClassifier",
+      "Model": "LGBMClassifier",
       "Accuracy": 0.9914772727272727,
       "Balanced Accuracy": 0.9914772727272727,
       "ROC AUC": 0.9999577245670995,
-      "F1 Score": 0.9914689416155692,
-      "Precision": 0.9916221033868093,
+      "F1 Score": 0.9913828534612993,
+      "Precision": 0.991454991087344,
       "Recall": 0.9914772727272727,
-      "Time Taken": 0.5693223476409912
+      "Time Taken": 3.4224605560302734
+    },
+    {
+      "Model": "RandomForestClassifier",
+      "Accuracy": 0.9914772727272727,
+      "Balanced Accuracy": 0.9914772727272727,
+      "ROC AUC": 0.999906994047619,
+      "F1 Score": 0.9913828534612993,
+      "Precision": 0.991454991087344,
+      "Recall": 0.9914772727272727,
+      "Time Taken": 0.3322155475616455
+    },
+    {
+      "Model": "XGBClassifier",
+      "Accuracy": 0.9886363636363636,
+      "Balanced Accuracy": 0.9886363636363636,
+      "ROC AUC": 0.999915449134199,
+      "F1 Score": 0.9884297520661157,
+      "Precision": 0.9887318563789151,
+      "Recall": 0.9886363636363636,
+      "Time Taken": 0.572702169418335
+    },
+    {
+      "Model": "ExtraTreesClassifier",
+      "Accuracy": 0.9886363636363636,
+      "Balanced Accuracy": 0.9886363636363636,
+      "ROC AUC": 0.999919676677489,
+      "F1 Score": 0.9884029122547262,
+      "Precision": 0.9896019013666073,
+      "Recall": 0.9886363636363636,
+      "Time Taken": 0.16929221153259277
+    },
+    {
+      "Model": "BaggingClassifier",
+      "Accuracy": 0.9857954545454546,
+      "Balanced Accuracy": 0.9857954545454546,
+      "ROC AUC": 0.9998224431818182,
+      "F1 Score": 0.9857926775082201,
+      "Precision": 0.9859625668449198,
+      "Recall": 0.9857954545454546,
+      "Time Taken": 0.11207389831542969
     }
   ],
   "cross_validation": {
     "accuracy": {
-      "train_mean": 0.9995738636363637,
-      "train_std": 0.0005681818181818343,
-      "test_mean": 0.9948863636363636,
-      "test_std": 0.004175266607016788
+      "train_mean": 1.0,
+      "train_std": 0.0,
+      "test_mean": 0.9892045454545455,
+      "test_std": 0.007050950935222065
     },
     "precision": {
-      "train_mean": 0.9995846577664761,
-      "train_std": 0.000552038986220202,
-      "test_mean": 0.9954154548581794,
-      "test_std": 0.003630752098722124
+      "train_mean": 1.0,
+      "train_std": 0.0,
+      "test_mean": 0.9897237076648843,
+      "test_std": 0.006721073402301039
     },
     "recall": {
-      "train_mean": 0.9995738636363637,
-      "train_std": 0.0005681818181818343,
-      "test_mean": 0.9948863636363636,
-      "test_std": 0.004175266607016788
+      "train_mean": 1.0,
+      "train_std": 0.0,
+      "test_mean": 0.9892045454545455,
+      "test_std": 0.007050950935222065
     },
     "f1": {
-      "train_mean": 0.9995737855909986,
-      "train_std": 0.0005683075619343017,
-      "test_mean": 0.9948645714824416,
-      "test_std": 0.0042022285166392745
+      "train_mean": 1.0,
+      "train_std": 0.0,
+      "test_mean": 0.9892090736587891,
+      "test_std": 0.0070741933182823
     }
   },
   "train_metrics": {
@@ -226,22 +227,22 @@
     "f1_macro": 1.0
   },
   "test_metrics": {
-    "accuracy": 0.9954545454545455,
-    "balanced_accuracy": 0.9954545454545454,
-    "precision_macro": 0.9956709956709957,
-    "recall_macro": 0.9954545454545454,
-    "f1_macro": 0.9954517027687758,
-    "roc_auc_ovr_macro": 1.0,
-    "roc_auc_ovr_weighted": 1.0
+    "accuracy": 0.990909090909091,
+    "balanced_accuracy": 0.9909090909090907,
+    "precision_macro": 0.991538764266037,
+    "recall_macro": 0.9909090909090907,
+    "f1_macro": 0.9909561982732714,
+    "roc_auc_ovr_macro": 0.9999945887445887,
+    "roc_auc_ovr_weighted": 0.9999945887445888
   },
   "train_test_gap": {
-    "accuracy": 0.004545454545454519,
-    "f1_macro": 0.004548297231224185
+    "accuracy": 0.009090909090909038,
+    "f1_macro": 0.009043801726728584
   },
   "learning_curve": {
-    "final_train_mean": 0.9991477272727272,
-    "final_cv_mean": 0.99375,
-    "gap": 0.0053977272727271375
+    "final_train_mean": 1.0,
+    "final_cv_mean": 0.9892045454545455,
+    "gap": 0.010795454545454497
   },
   "classification_report": {
     "apple": {
@@ -306,8 +307,8 @@
     },
     "lentil": {
       "precision": 1.0,
-      "recall": 1.0,
-      "f1-score": 1.0,
+      "recall": 0.95,
+      "f1-score": 0.9743589743589743,
       "support": 20.0
     },
     "maize": {
@@ -323,9 +324,9 @@
       "support": 20.0
     },
     "mothbeans": {
-      "precision": 1.0,
+      "precision": 0.9090909090909091,
       "recall": 1.0,
-      "f1-score": 1.0,
+      "f1-score": 0.9523809523809523,
       "support": 20.0
     },
     "mungbean": {
@@ -354,8 +355,8 @@
     },
     "pigeonpeas": {
       "precision": 1.0,
-      "recall": 1.0,
-      "f1-score": 1.0,
+      "recall": 0.95,
+      "f1-score": 0.9743589743589743,
       "support": 20.0
     },
     "pomegranate": {
@@ -376,17 +377,17 @@
       "f1-score": 1.0,
       "support": 20.0
     },
-    "accuracy": 0.9954545454545455,
+    "accuracy": 0.990909090909091,
     "macro avg": {
-      "precision": 0.9956709956709957,
-      "recall": 0.9954545454545454,
-      "f1-score": 0.9954517027687758,
+      "precision": 0.991538764266037,
+      "recall": 0.9909090909090907,
+      "f1-score": 0.9909561982732714,
       "support": 440.0
     },
     "weighted avg": {
-      "precision": 0.9956709956709956,
-      "recall": 0.9954545454545455,
-      "f1-score": 0.9954517027687759,
+      "precision": 0.991538764266037,
+      "recall": 0.990909090909091,
+      "f1-score": 0.9909561982732715,
       "support": 440.0
     }
   },
@@ -642,8 +643,32 @@
       0,
       0,
       0,
-      20,
+      19,
       0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      20,
       0,
       0,
       0,
@@ -667,30 +692,6 @@
       0,
       0,
       0,
-      20,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0
-    ],
-    [
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
-      0,
       0,
       20,
       0,
@@ -837,12 +838,12 @@
       0,
       0,
       0,
+      1,
       0,
       0,
       0,
       0,
-      0,
-      20,
+      19,
       0,
       0,
       0
@@ -921,13 +922,23 @@
     ]
   ],
   "misclassification_analysis": {
-    "total_errors": 2,
+    "total_errors": 4,
     "total_samples": 440,
-    "error_rate": 0.004545454545454545,
+    "error_rate": 0.00909090909090909,
     "top_confusion_pairs": [
       {
         "actual": "blackgram",
         "predicted": "maize",
+        "count": 1
+      },
+      {
+        "actual": "lentil",
+        "predicted": "mothbeans",
+        "count": 1
+      },
+      {
+        "actual": "pigeonpeas",
+        "predicted": "mothbeans",
         "count": 1
       },
       {
@@ -939,26 +950,31 @@
   },
   "lowest_roc_auc_classes": [
     {
+      "class": "lentil",
+      "roc_auc": 0.9998809523809524
+    },
+    {
       "class": "apple",
       "roc_auc": 1.0
     },
     {
       "class": "banana",
       "roc_auc": 1.0
-    },
-    {
-      "class": "blackgram",
-      "roc_auc": 1.0
     }
   ],
   "feature_importance": {
-    "N": 0.1054877605952119,
-    "P": 0.15693152338852837,
-    "K": 0.17481005003677139,
-    "temperature": 0.07404773042127553,
-    "humidity": 0.2147620113636827,
-    "ph": 0.04912310829085453,
-    "rainfall": 0.22483781590367566
+    "N": 789,
+    "P": 1248,
+    "K": 1126,
+    "temperature": 861,
+    "humidity": 2130,
+    "ph": 1343,
+    "rainfall": 1824,
+    "NPK_Total": 628,
+    "N_to_P": 676,
+    "N_to_K": 754,
+    "P_to_K": 980,
+    "Soil_Fertility": 432
   },
   "artifacts": {
     "model_path": "models\\best_model.pkl",

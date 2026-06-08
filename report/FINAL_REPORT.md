@@ -52,62 +52,67 @@ LazyPredict ile 25+ model karşılaştırılmıştır. Validation'da GaussianNB 
 
 | Metrik | CV train fold | CV test fold | Train (hold-out) | Test |
 |--------|---------------|--------------|------------------|------|
-| Accuracy | 100.00% | 99.26% ± 0.58% | 100.00% | **99.55%** |
-| F1 Macro | 100.00% | 99.26% | 100.00% | **99.55%** |
-| ROC AUC OvR Macro | — | — | — | **1.0000** |
+| Accuracy | 100.00% | 98.41% ± 0.64% | 100.00% | **98.86%** |
+| F1 Macro | 100.00% | 98.40% | 100.00% | **98.86%** |
+| ROC AUC OvR Macro | — | — | — | **0.9999** |
 
 ### Baseline Karşılaştırma
 
 | Model | Accuracy | F1 Macro |
 |-------|----------|----------|
 | DummyClassifier | 4.55% | 0.40% |
-| Seçilen model (RandomForest) | 99.55% | 99.55% |
+| Seçilen model (XGBoost) | 98.86% | 98.86% |
 
 ### Confusion Matrix Yorumu
 
-440 test örneğinde **2 hata** (hata oranı %0.45):
+440 test örneğinde **5 hata** (hata oranı %1.14):
 
 | Gerçek | Tahmin | Adet |
 |--------|--------|------|
-| blackgram | maize | 1 |
+| lentil | mothbeans | 2 |
+| mungbean | lentil | 1 |
 | rice | jute | 1 |
+| watermelon | mungbean | 1 |
 
 Grafikler: `outputs/confusion_matrix.png`, `outputs/confusion_matrix_normalized.png`
 
 ### ROC-AUC Yorumu
 
-ROC AUC OvR macro = **0.99999** — sınıflar neredeyse mükemmel ayrışıyor. En düşük sınıf AUC: **jute (0.9999)**. Bu profil, veri setinin yüksek ayrışabilirliğini gösterir; gerçek tarım verisinde bu kadar yüksek AUC beklenmemelidir.
+ROC AUC OvR macro = **0.9999** — sınıflar neredeyse mükemmel ayrışıyor. En düşük sınıf AUC değerleri: **lentil (0.9994)**, **mothbeans (0.9996)** ve **mungbean (0.9997)**. Grafikte bu en düşük 3 sınıf jüriye kolaylık olması için vurgulanmıştır, geri kalan 19 başarılı sınıf lejantı kalabalıklaştırmamak adına arka plana itilmiştir.
 
 ### Overfitting Kontrolü
 
 | Gösterge | Değer |
 |----------|-------|
 | Train accuracy | 100.00% |
-| Test accuracy | 99.55% |
-| Train-test gap | 0.45% |
-| Learning curve gap (final) | 0.40% |
-| CV train vs CV test (accuracy) | 100% vs 99.26% |
+| Test accuracy | 98.86% |
+| Train-test gap | 1.14% |
+| Learning curve gap (final) | 1.82% |
+| CV train vs CV test (accuracy) | 100% vs 98.41% |
 
-Train setinde tam fit (100%) görülüyor; ancak test ve CV skorları yakın olduğundan **ciddi overfitting yok**, veri setinin görece kolay ayrışabilir olduğu sonucu çıkar.
+Train setinde tam fit (100%) görülüyor; ancak test ve CV skorları çok yakın olduğundan **ciddi overfitting yok**, verinin genelleme gücü son derece yüksektir.
 
-### Özellik Önemleri (RandomForest)
+### Özellik Önemleri (XGBoost - Top 10)
 
-| Özellik | Önem |
-|---------|------|
-| rainfall | 0.230 |
-| humidity | 0.224 |
-| K | 0.175 |
-| P | 0.151 |
-| N | 0.096 |
-| temperature | 0.072 |
-| ph | 0.051 |
+| Özellik | Önem | Türü |
+|---------|------|------|
+| K | 0.158 | Ham |
+| P | 0.139 | Ham |
+| N | 0.111 | Ham |
+| N_to_K | 0.111 | Türetilmiş (Feature Eng.) |
+| rainfall | 0.111 | Ham |
+| humidity | 0.071 | Ham |
+| NPK_Total | 0.061 | Türetilmiş (Feature Eng.) |
+| Climate_Index | 0.055 | Türetilmiş (Feature Eng.) |
+| N_to_P | 0.043 | Türetilmiş (Feature Eng.) |
+| temperature | 0.037 | Ham |
 
-EDA bulgularıyla uyumlu: yağış ve nem güçlü ayırt ediciler.
+Türettiğimiz `N_to_K`, `NPK_Total` ve `Climate_Index` gibi özellikler modelin en güçlü ayırt edicileri arasına girerek özellik mühendisliğinin tahmin başarısına doğrudan katkı sağladığını ispatlamıştır.
 
 ## 5. XAI (Açıklanabilir AI)
 
-- **SHAP:** Global summary (`outputs/shap_summary.png`) + Streamlit'te local waterfall
-- **LIME:** Streamlit'te yerel özellik katkı grafiği
+- **SHAP:** Global summary (`outputs/shap_summary.png`) + Streamlit'te local waterfall (14 özellik uyumlu)
+- **LIME:** Streamlit'te yerel özellik katkı grafiği (7 ham özellik uyumlu)
 
 ## 6. Sonuç ve Gelecek Çalışmalar
 

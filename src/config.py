@@ -16,11 +16,22 @@ OUTPUT_DIR = PROJECT_ROOT / "outputs"
 REPORT_DIR = PROJECT_ROOT / "report"
 
 FEATURE_COLUMNS = ["N", "P", "K", "temperature", "humidity", "ph", "rainfall"]
+ENGINEERED_FEATURE_COLUMNS = [
+    "NPK_Total",
+    "N_to_P",
+    "N_to_K",
+    "P_to_K",
+    "Soil_Fertility",
+]
+ALL_FEATURE_COLUMNS = FEATURE_COLUMNS + ENGINEERED_FEATURE_COLUMNS
 TARGET_COLUMN = "label"
 
 TEST_SIZE = 0.2
 RANDOM_STATE = 42
 CV_FOLDS = 5
+
+# EDA ile aynı kural: Q1 - k*IQR, Q3 + k*IQR (Tukey fences)
+IQR_MULTIPLIER = 1.5
 
 METRICS_PATH = OUTPUT_DIR / "metrics.json"
 CONFUSION_MATRIX_PATH = OUTPUT_DIR / "confusion_matrix.png"

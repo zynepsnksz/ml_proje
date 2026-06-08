@@ -12,7 +12,7 @@ from matplotlib.figure import Figure
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import LabelEncoder
 
-from src.config import FEATURE_COLUMNS
+from src.config import ALL_FEATURE_COLUMNS, FEATURE_COLUMNS
 
 TREE_EXPLAINER_TYPES = (
     "RandomForestClassifier",
@@ -46,48 +46,53 @@ def plot_summary(
     X_train: pd.DataFrame,
     output_path: Path,
     sample_size: int = 300,
+    class_names: list[str] | None = None,
 ) -> None:
-    """Global SHAP summary plot (beeswarm) üretir ve kaydeder."""
+    """Global SHAP summary plot (stacked bar chart) üretir ve kaydeder."""
     if not supports_tree_explainer(pipeline):
         return
 
+    engineer = pipeline.named_steps.get("engineer", None)
+    clipper = pipeline.named_steps.get("clipper", None)
     scaler = pipeline.named_steps["scaler"]
     classifier = pipeline.named_steps["classifier"]
+
     X_sample = X_train[FEATURE_COLUMNS]
     if len(X_sample) > sample_size:
         X_sample = X_sample.sample(sample_size, random_state=42)
 
-    X_scaled = scaler.transform(X_sample)
+    if engineer is not None:
+        X_processed = engineer.transform(X_sample)
+        feature_names = ALL_FEATURE_COLUMNS
+    else:
+        X_processed = X_sample
+        feature_names = FEATURE_COLUMNS
+
+    if clipper is not None:
+        X_processed = clipper.transform(X_processed)
+
+    X_scaled = scaler.transform(X_processed)
+
     explainer = shap.TreeExplainer(classifier)
     shap_values = explainer.shap_values(X_scaled)
 
-    plt.figure(figsize=(10, 6))
-    if isinstance(shap_values, list):
-        shap.summary_plot(
-            shap_values,
-            X_scaled,
-            feature_names=FEATURE_COLUMNS,
-            show=False,
-            max_display=len(FEATURE_COLUMNS),
-        )
-    elif isinstance(shap_values, np.ndarray) and shap_values.ndim == 3:
-        # Çok sınıflı RF: (n_samples, n_features, n_classes) → sınıflar üzerinden ortalama |SHAP|
-        values_for_plot = np.abs(shap_values).mean(axis=2)
-        shap.summary_plot(
-            values_for_plot,
-            X_scaled,
-            feature_names=FEATURE_COLUMNS,
-            show=False,
-            max_display=len(FEATURE_COLUMNS),
-        )
+    # 3D array'i list of 2D arrays'e çevirerek stacked bar chart için uyumlu hale getirelim
+    if isinstance(shap_values, np.ndarray) and shap_values.ndim == 3:
+        shap_values_list = [shap_values[:, :, i] for i in range(shap_values.shape[2])]
     else:
-        shap.summary_plot(
-            shap_values,
-            X_scaled,
-            feature_names=FEATURE_COLUMNS,
-            show=False,
-            max_display=len(FEATURE_COLUMNS),
-        )
+        shap_values_list = shap_values
+
+    plt.figure(figsize=(12, 8))
+    shap.summary_plot(
+        shap_values_list,
+        X_scaled,
+        feature_names=feature_names,
+        class_names=class_names,
+        plot_type="bar",
+        show=False,
+        max_display=len(feature_names),
+    )
+    plt.title("Global SHAP Feature Importance (Stacked Bar Chart per Crop)", fontsize=14, fontweight="bold", pad=20)
     plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close()
@@ -97,6 +102,7 @@ def _build_waterfall_explanation(
     explainer: shap.TreeExplainer,
     scaled_instance: np.ndarray,
     label_index: int,
+    feature_names: list[str],
 ) -> shap.Explanation:
     """Tek örnek ve hedef sınıf için SHAP Explanation nesnesi üretir."""
     shap_values = explainer(scaled_instance)
@@ -115,7 +121,7 @@ def _build_waterfall_explanation(
         values=values,
         base_values=base_value,
         data=scaled_instance[0],
-        feature_names=FEATURE_COLUMNS,
+        feature_names=feature_names,
     )
 
 
@@ -126,15 +132,29 @@ def plot_local_waterfall(
     label_encoder: LabelEncoder,
 ) -> Figure:
     """Tek bir örnek için SHAP waterfall grafiği oluşturur."""
+    engineer = pipeline.named_steps.get("engineer", None)
+    clipper = pipeline.named_steps.get("clipper", None)
     scaler = pipeline.named_steps["scaler"]
-    scaled_instance = scaler.transform(instance_df[FEATURE_COLUMNS])
+
+    if engineer is not None:
+        processed = engineer.transform(instance_df[FEATURE_COLUMNS])
+        feature_names = ALL_FEATURE_COLUMNS
+    else:
+        processed = instance_df[FEATURE_COLUMNS]
+        feature_names = FEATURE_COLUMNS
+
+    if clipper is not None:
+        processed = clipper.transform(processed)
+
+    scaled_instance = scaler.transform(processed)
+        
     explainer = get_shap_explainer(pipeline)
-    explanation = _build_waterfall_explanation(explainer, scaled_instance, label_index)
+    explanation = _build_waterfall_explanation(explainer, scaled_instance, label_index, feature_names)
 
     crop_name = label_encoder.inverse_transform([label_index])[0]
 
     fig = plt.figure(figsize=(10, 6))
-    shap.plots.waterfall(explanation, show=False, max_display=len(FEATURE_COLUMNS))
+    shap.plots.waterfall(explanation, show=False, max_display=len(feature_names))
     fig = plt.gcf()
     fig.suptitle(f"SHAP Waterfall — {crop_name}", fontsize=14, fontweight="bold", y=1.02)
 

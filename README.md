@@ -42,13 +42,18 @@ ml_proje/
 └── requirements.txt
 ```
 
-## Model Seçimi
+## Model Seçimi ve Hiperparametre Optimizasyonu
 
 Model seçimi **LazyPredict** ile yapılır; karşılaştırma yalnızca eğitim setinin iç validation bölünmesi (%80/%20) üzerinde gerçekleşir. Test seti model seçimine dahil edilmez.
 
 Validation skorunda GaussianNB veya QDA bazen RandomForest ile eşit/üstün çıkabilir. Ancak proje **SHAP TreeExplainer** ile uyumlu olması için ağaç tabanlı modeller arasından (`RandomForest`, `ExtraTrees`, `XGBoost`, `LightGBM`, `DecisionTree`) en yüksek accuracy'ye sahip olan seçilir. Bu bilinçli bir **performans–açıklanabilirlik trade-off**'udur.
 
-Hiperparametre tuning bilinçli olarak yapılmamıştır; sklearn varsayılan parametreleri kullanılır.
+Seçilen en iyi model için **RandomizedSearchCV** kullanılarak modele özel dinamik bir hiperparametre arama gridi (XGBoost, RandomForest, LGBM, DecisionTree vb.) üzerinden optimizasyon gerçekleştirilir. Hiperparametre optimizasyonu ve çapraz doğrulama (cross-validation) süreçlerinde çok sınıflı sınıflandırma problemlerinde doğruluğu en iyi yansıtan **`f1_macro`** metriği skorlama kriteri olarak kullanılır. Overfitting (ezberleme) riskini en aza indirmek amacıyla arama uzayındaki model derinlikleri (`max_depth`) ve dallanma parametreleri (`min_samples_leaf`, `min_samples_split`, `num_leaves`) uygun şekilde regüle edilmiştir.
+
+## Veri Ön İşleme ve Domain Validation
+
+*   **OutlierClipper:** EDA'daki **1.5×IQR (Tukey fences)** analiziyle tespit edilen aykırı değerler silinmez; eğitim setinde hesaplanan IQR sınırlarına göre **Winsorize/kırpma** uygulanır. `StandardScaler` yalnızca kırpılmış dağılım üzerinde fit edilir — tek başına ölçekleme aykırı değerleri yönetmez.
+*   **Domain Validation:** Fiziksel kurallara (toprak asitliği pH $\in [0, 14]$, nem $\in [0, 100]$, Azot/Fosfor/Potasyum $\ge 0$, Yağış $\ge 0$) uygunluğu garanti altına almak için hem veri yükleme hem de tahmin girdi katmanlarında **`validate_inputs`** doğrulayıcısı çalıştırılır.
 
 ## Dosya Referansı
 

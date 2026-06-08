@@ -6,7 +6,7 @@ import json
 from datetime import datetime, timezone
 from typing import Any
 
-import joblib
+import dill
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -29,6 +29,7 @@ from sklearn.model_selection import RandomizedSearchCV, StratifiedKFold, cross_v
 from sklearn.preprocessing import StandardScaler, label_binarize
 
 from src.config import (
+    ALL_FEATURE_COLUMNS,
     CONFUSION_MATRIX_NORMALIZED_PATH,
     CONFUSION_MATRIX_PATH,
     CV_FOLDS,
@@ -64,12 +65,6 @@ TREE_BASED_MODELS = [
 ]
 DEFAULT_TREE_MODEL = "RandomForestClassifier"
 LAZYPREDICT_VAL_SIZE = 0.2
-PARAM_DIST = {
-    "classifier__n_estimators": [50, 100, 200],
-    "classifier__max_depth": [5, 10, 15, None],
-    "classifier__min_samples_split": [2, 5, 10],
-    "classifier__min_samples_leaf": [1, 2, 4],
-}
 
 
 def _ensure_output_dir() -> None:
@@ -79,7 +74,7 @@ def _ensure_output_dir() -> None:
 
 def _select_tree_model(results: pd.DataFrame) -> str:
     """LazyPredict sonuçlarından SHAP TreeExplainer uyumlu ilk modeli seçer."""
-    ranked = results.sort_values("Accuracy", ascending=False).index.tolist()
+    ranked = results.sort_values("F1 Score", ascending=False).index.tolist()
     for model_name in ranked:
         if model_name in TREE_BASED_MODELS:
             return model_name
@@ -119,13 +114,24 @@ def select_best_model_with_lazypredict(
         stratify=y_train,
     )
 
+    # LazyPredict: tam pipeline ile aynı ön işleme (feature + IQR clip + scale)
+    from src.preprocessing import FeatureEngineer, OutlierClipper
+
+    engineer = FeatureEngineer()
+    clipper = OutlierClipper()
+    X_lp_train_eng = engineer.transform(X_lp_train)
+    X_lp_val_eng = engineer.transform(X_lp_val)
+    clipper.fit(X_lp_train_eng)
+    X_lp_train_clipped = clipper.transform(X_lp_train_eng)
+    X_lp_val_clipped = clipper.transform(X_lp_val_eng)
+
     scaler = StandardScaler()
-    X_lp_train_scaled = scaler.fit_transform(X_lp_train)
-    X_lp_val_scaled = scaler.transform(X_lp_val)
+    X_lp_train_scaled = scaler.fit_transform(X_lp_train_clipped)
+    X_lp_val_scaled = scaler.transform(X_lp_val_clipped)
 
     lazy_clf = LazyClassifier(verbose=0, ignore_warnings=True, predictions=False)
     results, _ = lazy_clf.fit(X_lp_train_scaled, X_lp_val_scaled, y_lp_train, y_lp_val)
-    results = results.sort_values("Accuracy", ascending=False)
+    results = results.sort_values("F1 Score", ascending=False)
     best_model_name = _select_tree_model(results)
     return best_model_name, results
 
@@ -137,21 +143,70 @@ def tune_hyperparameters(
 ) -> tuple[Any, dict[str, Any]]:
     """RandomizedSearchCV ile pipeline hiperparametrelerini optimize eder."""
     cv = StratifiedKFold(n_splits=CV_FOLDS, shuffle=True, random_state=RANDOM_STATE)
+    
+    classifier = pipeline.named_steps["classifier"]
+    classifier_name = type(classifier).__name__
+
+    if classifier_name == "XGBClassifier":
+        param_dist = {
+            "classifier__n_estimators": [50, 100, 200, 300],
+            "classifier__max_depth": [3, 4, 5, 6, 7, 8],
+            "classifier__learning_rate": [0.005, 0.01, 0.05, 0.1, 0.15, 0.2],
+            "classifier__subsample": [0.6, 0.7, 0.8, 0.9, 1.0],
+            "classifier__colsample_bytree": [0.6, 0.7, 0.8, 0.9, 1.0],
+            "classifier__min_child_weight": [1, 2, 3, 5],
+        }
+    elif classifier_name in ("RandomForestClassifier", "ExtraTreesClassifier"):
+        param_dist = {
+            "classifier__n_estimators": [50, 100, 200, 300, 400],
+            "classifier__max_depth": [5, 8, 10, 12, 15, 20, None],
+            "classifier__min_samples_split": [2, 3, 5, 10, 15],
+            "classifier__min_samples_leaf": [1, 2, 4, 6, 8],
+            "classifier__max_features": ["sqrt", "log2", None],
+        }
+    elif classifier_name == "LGBMClassifier":
+        param_dist = {
+            "classifier__n_estimators": [50, 100, 200, 300],
+            "classifier__max_depth": [3, 5, 7, 10, 15],
+            "classifier__learning_rate": [0.005, 0.01, 0.05, 0.1, 0.2],
+            "classifier__num_leaves": [15, 31, 63, 127],
+            "classifier__subsample": [0.6, 0.7, 0.8, 0.9, 1.0],
+        }
+    elif classifier_name == "DecisionTreeClassifier":
+        param_dist = {
+            "classifier__max_depth": [3, 5, 7, 10, 15, 20],
+            "classifier__min_samples_split": [2, 3, 5, 10, 15],
+            "classifier__min_samples_leaf": [1, 2, 4, 6, 8],
+        }
+    else:
+        # Fallback grid for other types of classifiers
+        param_dist = {
+            "classifier__n_estimators": [50, 100, 200],
+            "classifier__max_depth": [5, 8, 12, None],
+        }
+
     search = RandomizedSearchCV(
         estimator=pipeline,
-        param_distributions=PARAM_DIST,
-        n_iter=10,
+        param_distributions=param_dist,
+        n_iter=50,
         cv=cv,
-        scoring="accuracy",
+        scoring="f1_macro",
         random_state=RANDOM_STATE,
         n_jobs=-1,
     )
     search.fit(X_train, y_train)
 
-    best_params = {
-        key: (None if value is None else int(value) if isinstance(value, np.integer) else value)
-        for key, value in search.best_params_.items()
-    }
+    best_params = {}
+    for key, value in search.best_params_.items():
+        if value is None:
+            best_params[key] = None
+        elif isinstance(value, (np.integer, int)):
+            best_params[key] = int(value)
+        elif isinstance(value, (np.floating, float)):
+            best_params[key] = float(value)
+        else:
+            best_params[key] = value
+
     return search.best_estimator_, best_params
 
 
@@ -325,49 +380,104 @@ def plot_roc_curve_ovr(
     y_proba: np.ndarray,
     class_labels: list[str],
 ) -> list[dict[str, Any]]:
-    """One-vs-Rest ROC eğrisini kaydeder; sınıf bazlı AUC listesi döndürür."""
+    """One-vs-Rest ROC eğrisini kaydeder; görsel karmaşayı önlemek için en düşük 3 sınıfı vurgular."""
     n_classes = len(class_labels)
     y_bin = label_binarize(y_test, classes=list(range(n_classes)))
     per_class = []
 
-    plt.figure(figsize=(10, 8))
+    # Önce tüm sınıfların AUC değerlerini hesaplayalım
     for i in range(n_classes):
         fpr, tpr, _ = roc_curve(y_bin[:, i], y_proba[:, i])
         roc_auc = auc(fpr, tpr)
-        per_class.append({"class": class_labels[i], "roc_auc": float(roc_auc)})
-        plt.plot(fpr, tpr, alpha=0.35, label=f"{class_labels[i]} (AUC={roc_auc:.3f})")
+        per_class.append({
+            "index": i,
+            "class": class_labels[i],
+            "roc_auc": float(roc_auc),
+            "fpr": fpr,
+            "tpr": tpr
+        })
 
+    # AUC değerlerine göre sıralayalım (en düşükler önce gelir)
+    sorted_classes = sorted(per_class, key=lambda item: item["roc_auc"])
+    lowest_3_indices = {item["index"] for item in sorted_classes[:3]}
+
+    plt.figure(figsize=(10, 8))
+    
+    # Renkli çizilecek en düşük 3 sınıf için palet
+    colors = ["#e74c3c", "#e67e22", "#f1c40f"]  # Kırmızı, Turuncu, Sarı tonları
+    color_idx = 0
+
+    for item in sorted_classes:
+        i = item["index"]
+        fpr = item["fpr"]
+        tpr = item["tpr"]
+        roc_auc = item["roc_auc"]
+        
+        if i in lowest_3_indices:
+            color = colors[color_idx]
+            color_idx += 1
+            plt.plot(
+                fpr, 
+                tpr, 
+                color=color, 
+                lw=2.5, 
+                zorder=3, 
+                label=f"{item['class']} (En Düşük AUC = {roc_auc:.4f})"
+            )
+        else:
+            plt.plot(
+                fpr, 
+                tpr, 
+                color="#cbd5e1", 
+                alpha=0.25, 
+                lw=1, 
+                zorder=1,
+                label=None  # Lejantta kalabalık yapmaması için gizliyoruz
+            )
+
+    # Macro-average ROC hesaplama ve çizme
     all_fpr = np.unique(
-        np.concatenate([roc_curve(y_bin[:, i], y_proba[:, i])[0] for i in range(n_classes)])
+        np.concatenate([sorted_classes[idx]["fpr"] for idx in range(n_classes)])
     )
     mean_tpr = np.zeros_like(all_fpr)
-    for i in range(n_classes):
-        fpr, tpr, _ = roc_curve(y_bin[:, i], y_proba[:, i])
-        mean_tpr += np.interp(all_fpr, fpr, tpr)
+    for idx in range(n_classes):
+        mean_tpr += np.interp(all_fpr, sorted_classes[idx]["fpr"], sorted_classes[idx]["tpr"])
     mean_tpr /= n_classes
     macro_auc = auc(all_fpr, mean_tpr)
-    plt.plot(all_fpr, mean_tpr, color="black", lw=2, label=f"Macro-average (AUC={macro_auc:.3f})")
+    
+    plt.plot(
+        all_fpr, 
+        mean_tpr, 
+        color="#1e293b", 
+        lw=3, 
+        zorder=4, 
+        label=f"Macro-average (AUC = {macro_auc:.4f})"
+    )
 
-    plt.plot([0, 1], [0, 1], "k--", lw=1)
+    plt.plot([0, 1], [0, 1], "k--", lw=1, zorder=2)
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.05])
-    plt.xlabel("False Positive Rate")
-    plt.ylabel("True Positive Rate")
-    plt.title("ROC Curve — One-vs-Rest")
-    plt.legend(loc="lower right", fontsize=7, ncol=2)
+    plt.xlabel("False Positive Rate", fontsize=11)
+    plt.ylabel("True Positive Rate", fontsize=11)
+    plt.title("ROC Curve — One-vs-Rest (Vurgulanmış En Düşük 3 Sınıf)", fontsize=13, fontweight="bold", pad=12)
+    plt.legend(loc="lower right", fontsize=9)
+    plt.grid(True, linestyle="--", alpha=0.5)
     plt.tight_layout()
     plt.savefig(ROC_CURVE_PATH, dpi=150)
     plt.close()
-    return sorted(per_class, key=lambda item: item["roc_auc"])
+    
+    # Sonuç listesini (sadece metadata ile) döndürelim
+    return [{"class": item["class"], "roc_auc": item["roc_auc"]} for item in sorted_classes]
 
 
 def plot_learning_curve_chart(pipeline, X_train: pd.DataFrame, y_train: np.ndarray) -> dict[str, float]:
     """Learning curve grafiği üretir ve train/test skor farkını döndürür."""
+    cv = StratifiedKFold(n_splits=CV_FOLDS, shuffle=True, random_state=RANDOM_STATE)
     train_sizes, train_scores, test_scores = learning_curve(
         pipeline,
         X_train,
         y_train,
-        cv=CV_FOLDS,
+        cv=cv,
         scoring="accuracy",
         train_sizes=np.linspace(0.1, 1.0, 8),
         shuffle=True,
@@ -408,10 +518,15 @@ def plot_feature_importance(pipeline, class_labels: list[str]) -> dict[str, floa
         return None
 
     importances = classifier.feature_importances_
+    
+    # Özellik isimlerini pipeline yapısına göre belirle
+    engineer = pipeline.named_steps.get("engineer", None)
+    feature_names = ALL_FEATURE_COLUMNS if engineer is not None else FEATURE_COLUMNS
+    
     order = np.argsort(importances)
-    plt.figure(figsize=(8, 5))
+    plt.figure(figsize=(10, 6))
     plt.barh(
-        [FEATURE_COLUMNS[i] for i in order],
+        [feature_names[i] for i in order],
         importances[order],
         color="#27ae60",
     )
@@ -420,7 +535,7 @@ def plot_feature_importance(pipeline, class_labels: list[str]) -> dict[str, floa
     plt.tight_layout()
     plt.savefig(FEATURE_IMPORTANCE_PATH, dpi=150)
     plt.close()
-    return dict(zip(FEATURE_COLUMNS, importances.tolist()))
+    return dict(zip(feature_names, importances.tolist()))
 
 
 def plot_model_comparison(lazy_results: pd.DataFrame, top_n: int = 10) -> None:
@@ -452,12 +567,35 @@ def save_model_artifact(
     label_encoder,
     best_model_name: str,
     test_metrics: dict[str, Any],
+    X_train: pd.DataFrame,
+    y_train: np.ndarray,
+    lime_explainer,
 ) -> None:
-    """Pipeline, LabelEncoder ve metadata ile artifact kaydeder."""
+    """Pipeline, LabelEncoder, LIME explainer, train-only UI metadata ve metadata ile artifact kaydeder."""
+    train_feature_bounds = {
+        col: (
+            float(X_train[col].quantile(0.01)),
+            float(X_train[col].quantile(0.99)),
+        )
+        for col in FEATURE_COLUMNS
+    }
+
+    train_labels = label_encoder.inverse_transform(y_train)
+    train_profile = X_train[FEATURE_COLUMNS].copy()
+    train_profile["label"] = train_labels
+    crop_means = train_profile.groupby("label")[FEATURE_COLUMNS].mean()
+    train_crop_scenarios = {
+        str(crop): {col: float(crop_means.loc[crop, col]) for col in FEATURE_COLUMNS}
+        for crop in crop_means.index
+    }
+
     artifact = {
         "pipeline": pipeline,
         "label_encoder": label_encoder,
         "best_model_name": best_model_name,
+        "lime_explainer": lime_explainer,
+        "train_feature_bounds": train_feature_bounds,
+        "train_crop_scenarios": train_crop_scenarios,
         "metadata": {
             "trained_at": datetime.now(timezone.utc).isoformat(),
             "sklearn_version": sklearn.__version__,
@@ -466,7 +604,8 @@ def save_model_artifact(
             "test_f1_macro": test_metrics.get("f1_macro"),
         },
     }
-    joblib.dump(artifact, MODEL_PATH)
+    with open(MODEL_PATH, "wb") as f:
+        dill.dump(artifact, f)
 
 
 def save_metrics(metrics: dict[str, Any]) -> None:
@@ -530,9 +669,19 @@ def train() -> dict[str, Any]:
     plot_model_comparison(lazy_results)
 
     if supports_tree_explainer(pipeline):
-        plot_summary(pipeline, X_train, SHAP_SUMMARY_PATH)
+        plot_summary(pipeline, X_train, SHAP_SUMMARY_PATH, class_names=label_encoder.classes_.tolist())
 
     lowest_auc_classes = roc_per_class[:3] if roc_per_class else []
+
+    from src.explainability.lime_analysis import create_lime_explainer
+    from src.preprocessing import FeatureEngineer
+
+    X_train_eng = FeatureEngineer().transform(X_train)
+    lime_explainer = create_lime_explainer(
+        X_train_eng,
+        ALL_FEATURE_COLUMNS,
+        label_encoder.classes_.tolist(),
+    )
 
     metrics: dict[str, Any] = {
         "best_model": best_model_name,
@@ -591,7 +740,15 @@ def train() -> dict[str, Any]:
         },
     }
 
-    save_model_artifact(pipeline, label_encoder, best_model_name, metrics["test_metrics"])
+    save_model_artifact(
+        pipeline,
+        label_encoder,
+        best_model_name,
+        metrics["test_metrics"],
+        X_train,
+        y_train_enc,
+        lime_explainer,
+    )
     save_metrics(metrics)
 
     print(f"Best model: {best_model_name}")

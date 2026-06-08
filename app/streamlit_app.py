@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import joblib
+import dill
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -15,22 +15,12 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from src.config import FEATURE_COLUMNS, MODEL_PATH
-from src.data.loader import get_feature_target, load_data, split_data
+from src.config import ALL_FEATURE_COLUMNS, FEATURE_COLUMNS, MODEL_PATH
+from src.preprocessing import FeatureEngineer
 from src.explainability.shap_analysis import supports_tree_explainer
-from src.explainability.lime_analysis import create_lime_explainer, explain_instance_lime
+from src.explainability.lime_analysis import explain_instance_lime
 from src.explainability.shap_analysis import plot_local_waterfall
 from src.models.predict import predict_top3
-
-@st.cache_data
-def load_all_crop_scenarios() -> dict[str, dict[str, float]]:
-    """Veri setindeki tüm mahsullerin ideal (ortalama) değerlerini dinamik hesaplar."""
-    df = load_data()
-    means = df.groupby("label")[FEATURE_COLUMNS].mean()
-    scenarios = {}
-    for crop in means.index:
-        scenarios[crop] = {col: float(means.loc[crop, col]) for col in FEATURE_COLUMNS}
-    return scenarios
 
 
 def _on_scenario_change(scenarios: dict[str, dict[str, float]]) -> None:
@@ -65,18 +55,6 @@ def _apply_scenario(scenario: dict[str, float]) -> None:
 
 
 @st.cache_resource
-def load_feature_bounds() -> dict[str, tuple[float, float]]:
-    """Slider sınırlarını eğitim verisi quantile'larından türetir."""
-    df = load_data()
-    bounds = {}
-    for col in FEATURE_COLUMNS:
-        lo = float(df[col].quantile(0.01))
-        hi = float(df[col].quantile(0.99))
-        bounds[col] = (lo, hi)
-    return bounds
-
-
-@st.cache_resource
 def load_artifact() -> dict:
     """Model artifact'ini bir kez yükler."""
     if not MODEL_PATH.exists():
@@ -84,21 +62,14 @@ def load_artifact() -> dict:
             f"Model dosyası bulunamadı: {MODEL_PATH}\n"
             "Önce `python -m src.models.train` komutunu çalıştırın."
         )
-    return joblib.load(MODEL_PATH)
+        with open(MODEL_PATH, "rb") as f:
+            return dill.load(f)
 
 
 @st.cache_resource
 def load_lime_explainer(_artifact: dict) -> object:
-    """Eğitim seti üzerinde LIME explainer oluşturur."""
-    df = load_data()
-    X, y = get_feature_target(df)
-    X_train, _, _, _ = split_data(X, y)
-    label_encoder = _artifact["label_encoder"]
-    return create_lime_explainer(
-        X_train[FEATURE_COLUMNS],
-        FEATURE_COLUMNS,
-        label_encoder.classes_.tolist(),
-    )
+    """Model artifact'inden LIME explainer nesnesini döndürür."""
+    return _artifact["lime_explainer"]
 
 
 def _build_instance_df() -> pd.DataFrame:
@@ -241,12 +212,20 @@ def main() -> None:
     )
 
     _init_session_state()
-    scenarios = load_all_crop_scenarios()
 
     try:
-        bounds = load_feature_bounds()
+        artifact = load_artifact()
     except FileNotFoundError as exc:
         st.error(str(exc))
+        st.stop()
+
+    bounds = artifact.get("train_feature_bounds")
+    scenarios = artifact.get("train_crop_scenarios")
+    if bounds is None or scenarios is None:
+        st.error(
+            "Model dosyası güncel değil (train_feature_bounds / train_crop_scenarios eksik). "
+            "Lütfen `python -m src.models.train` komutunu çalıştırın."
+        )
         st.stop()
 
     with st.sidebar:
@@ -296,19 +275,17 @@ def main() -> None:
             args=(scenarios,),
         )
 
-    try:
-        artifact = load_artifact()
-    except FileNotFoundError as exc:
-        st.error(str(exc))
-        st.stop()
-
     pipeline = artifact["pipeline"]
     label_encoder = artifact["label_encoder"]
     lime_explainer = load_lime_explainer(artifact)
 
     instance_df = _build_instance_df()
-    top3 = predict_top3(instance_df, artifact=artifact)
-    label_index = int(pipeline.predict(instance_df)[0])
+    try:
+        top3 = predict_top3(instance_df, artifact=artifact)
+        label_index = int(pipeline.predict(instance_df)[0])
+    except ValueError as e:
+        st.error(f"⚠️ Girdi Doğrulama Hatası: {str(e)}")
+        st.stop()
 
     best_crop, best_score = top3[0]
 
@@ -410,11 +387,14 @@ def main() -> None:
         st.markdown(
             "LIME, yerel bir yaklaşımla bu örnek için en etkili özellikleri listeler."
         )
-        predict_fn = lambda x: pipeline.predict_proba(pd.DataFrame(x, columns=FEATURE_COLUMNS))
+        instance_df_engineered = FeatureEngineer().transform(instance_df)
+        predict_fn = lambda x: pipeline[1:].predict_proba(
+            pd.DataFrame(x, columns=ALL_FEATURE_COLUMNS)
+        )
         lime_fig = explain_instance_lime(
             pipeline,
             lime_explainer,
-            instance_df,
+            instance_df_engineered,
             label_index,
             predict_fn=predict_fn,
         )

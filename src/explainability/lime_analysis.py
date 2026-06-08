@@ -12,7 +12,7 @@ from lime.lime_tabular import LimeTabularExplainer
 from matplotlib.figure import Figure
 from sklearn.pipeline import Pipeline
 
-from src.config import FEATURE_COLUMNS, RANDOM_STATE
+from src.config import RANDOM_STATE
 
 
 def create_lime_explainer(
@@ -23,7 +23,7 @@ def create_lime_explainer(
     """Ham eğitim verisi üzerinde LIME Tabular explainer oluşturur.
 
     Args:
-        X_train: Ölçeklenmemiş eğitim özellikleri.
+        X_train: Pipeline ile uyumlu eğitim özellikleri (örn. 14 mühendislik özelliği).
         feature_names: Özellik sütun adları.
         class_names: Sınıf/mahsul isimleri.
 
@@ -52,22 +52,23 @@ def explain_instance_lime(
     Args:
         pipeline: Eğitilmiş model pipeline'ı (scaler + classifier).
         explainer: ``create_lime_explainer`` ile oluşturulmuş LIME explainer.
-        instance_df: Tek satırlık özellik DataFrame'i.
+        instance_df: Tek satırlık özellik DataFrame'i (ham veya mühendislik özellikleri).
         label_index: Açıklanacak tahmin edilen sınıf indeksi.
-        predict_fn: Opsiyonel olasılık tahmin fonksiyonu. Verilmezse
-            ``pipeline.predict_proba`` kullanılır.
+        predict_fn: Opsiyonel olasılık tahmin fonksiyonu; ``instance_df`` ile aynı
+            özellik uzayında çalışmalıdır. Verilmezse ``pipeline.predict_proba`` kullanılır.
 
     Returns:
         Streamlit'te ``st.pyplot(fig)`` ile gösterilebilecek matplotlib Figure.
     """
-    instance = instance_df[FEATURE_COLUMNS].iloc[0].values
+    feature_columns = instance_df.columns.tolist()
+    instance = instance_df.iloc[0][feature_columns].values
     fn = predict_fn if predict_fn is not None else pipeline.predict_proba
 
     explanation = explainer.explain_instance(
         data_row=instance,
         predict_fn=fn,
         labels=[label_index],
-        num_features=len(FEATURE_COLUMNS),
+        num_features=len(feature_columns),
     )
 
     crop_name = explainer.class_names[label_index]

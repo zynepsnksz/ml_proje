@@ -2,7 +2,7 @@
 
 from typing import Any
 
-import joblib
+import dill
 import numpy as np
 import pandas as pd
 
@@ -11,19 +11,25 @@ from src.preprocessing import decode_labels
 
 
 def load_model(path=MODEL_PATH) -> dict[str, Any]:
-    """Joblib ile kaydedilmiş model artifact'ini yükler."""
-    return joblib.load(path)
+    """Dill ile kaydedilmiş model artifact'ini yükler."""
+    with open(path, "rb") as f:
+        return dill.load(f)
 
 
 def _to_dataframe(features: dict | pd.Series | pd.DataFrame | np.ndarray) -> pd.DataFrame:
-    """Girdiyi DataFrame formatına çevirir."""
+    """Girdiyi DataFrame formatına çevirir ve doğrular."""
     if isinstance(features, pd.DataFrame):
-        return features[FEATURE_COLUMNS]
-    if isinstance(features, pd.Series):
-        return pd.DataFrame([features[FEATURE_COLUMNS].values], columns=FEATURE_COLUMNS)
-    if isinstance(features, dict):
-        return pd.DataFrame([features], columns=FEATURE_COLUMNS)
-    return pd.DataFrame([features], columns=FEATURE_COLUMNS)
+        df = features[FEATURE_COLUMNS]
+    elif isinstance(features, pd.Series):
+        df = pd.DataFrame([features[FEATURE_COLUMNS].values], columns=FEATURE_COLUMNS)
+    elif isinstance(features, dict):
+        df = pd.DataFrame([features], columns=FEATURE_COLUMNS)
+    else:
+        df = pd.DataFrame([features], columns=FEATURE_COLUMNS)
+    
+    from src.data.loader import validate_inputs
+    validate_inputs(df, raise_on_error=True)
+    return df
 
 
 def predict(features: dict | pd.Series | pd.DataFrame | np.ndarray, artifact=None) -> str:
