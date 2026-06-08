@@ -25,7 +25,8 @@ from sklearn.metrics import (
     roc_auc_score,
     roc_curve,
 )
-from sklearn.model_selection import RandomizedSearchCV, StratifiedKFold, cross_validate, learning_curve, train_test_split
+from sklearn.base import clone
+from sklearn.model_selection import RandomizedSearchCV, StratifiedKFold, cross_validate, learning_curve
 from sklearn.preprocessing import StandardScaler, label_binarize
 
 from src.config import (
@@ -64,7 +65,7 @@ TREE_BASED_MODELS = [
     "LGBMClassifier",
 ]
 DEFAULT_TREE_MODEL = "RandomForestClassifier"
-LAZYPREDICT_VAL_SIZE = 0.2
+LAZYPREDICT_CV_FOLDS = 3
 
 
 def _ensure_output_dir() -> None:
@@ -105,35 +106,121 @@ def select_best_model_with_lazypredict(
     X_train: pd.DataFrame,
     y_train: np.ndarray,
 ) -> tuple[str, pd.DataFrame]:
-    """LazyPredict ile modelleri karşılaştırır, ağaç tabanlı en iyi modeli seçer."""
-    X_lp_train, X_lp_val, y_lp_train, y_lp_val = train_test_split(
-        X_train,
-        y_train,
-        test_size=LAZYPREDICT_VAL_SIZE,
-        random_state=RANDOM_STATE,
-        stratify=y_train,
-    )
+    """LazyPredict ile model seçimi; tek split yerine fold ortalaması kullanılır.
 
-    # LazyPredict: tam pipeline ile aynı ön işleme (feature + IQR clip + scale)
+    Tek validation split model sıralamasını fold'a özgü şansa bırakır; 3-fold
+    ortalama daha kararlı bir karşılaştırma sağlar. F1 macro, sınıf dengesizliğinde
+    accuracy'ye göre daha adil bir sıralama metriğidir.
+    """
     from src.preprocessing import FeatureEngineer, OutlierClipper
 
-    engineer = FeatureEngineer()
-    clipper = OutlierClipper()
-    X_lp_train_eng = engineer.transform(X_lp_train)
-    X_lp_val_eng = engineer.transform(X_lp_val)
-    clipper.fit(X_lp_train_eng)
-    X_lp_train_clipped = clipper.transform(X_lp_train_eng)
-    X_lp_val_clipped = clipper.transform(X_lp_val_eng)
+    # Stratified fold'lar azınlık sınıfların her turda temsil edilmesini korur.
+    cv = StratifiedKFold(n_splits=LAZYPREDICT_CV_FOLDS, shuffle=True, random_state=RANDOM_STATE)
+    fold_results: list[pd.DataFrame] = []
 
-    scaler = StandardScaler()
-    X_lp_train_scaled = scaler.fit_transform(X_lp_train_clipped)
-    X_lp_val_scaled = scaler.transform(X_lp_val_clipped)
+    for train_idx, val_idx in cv.split(X_train, y_train):
+        X_lp_train = X_train.iloc[train_idx]
+        X_lp_val = X_train.iloc[val_idx]
+        y_lp_train = y_train[train_idx]
+        y_lp_val = y_train[val_idx]
 
-    lazy_clf = LazyClassifier(verbose=0, ignore_warnings=True, predictions=False)
-    results, _ = lazy_clf.fit(X_lp_train_scaled, X_lp_val_scaled, y_lp_train, y_lp_val)
-    results = results.sort_values("F1 Score", ascending=False)
-    best_model_name = _select_tree_model(results)
-    return best_model_name, results
+        # LazyPredict ham veri kabul etmez; nihai pipeline ile tam aynı ön işleme
+        # uygulanmazsa model karşılaştırması yanıltıcı olur.
+        # Adım sırası: FeatureEngineer → SimpleImputer → OutlierClipper → StandardScaler
+        # (build_pipeline() ile birebir eşleşir — imputer burada da zorunludur)
+        from sklearn.impute import SimpleImputer
+
+        engineer = FeatureEngineer()
+        imputer = SimpleImputer(strategy="median")
+        clipper = OutlierClipper()
+        scaler = StandardScaler()
+
+        X_lp_train_eng = engineer.transform(X_lp_train)
+        X_lp_val_eng = engineer.transform(X_lp_val)
+
+        # imputer ve clipper yalnızca train fold üzerinde fit edilir;
+        # val fold'a aynı parametrelerle transform uygulanır (leakage yok).
+        X_lp_train_imp = imputer.fit_transform(X_lp_train_eng)
+        X_lp_val_imp = imputer.transform(X_lp_val_eng)
+
+        clipper.fit(X_lp_train_imp)
+        X_lp_train_clipped = clipper.transform(X_lp_train_imp)
+        X_lp_val_clipped = clipper.transform(X_lp_val_imp)
+
+        X_lp_train_scaled = scaler.fit_transform(X_lp_train_clipped)
+        X_lp_val_scaled = scaler.transform(X_lp_val_clipped)
+
+        lazy_clf = LazyClassifier(verbose=0, ignore_warnings=True, predictions=False)
+        results, _ = lazy_clf.fit(X_lp_train_scaled, X_lp_val_scaled, y_lp_train, y_lp_val)
+        fold_results.append(results)
+
+    # Fold'lar arası ortalama, tek seferlik şanslı/şanssız split etkisini azaltır.
+    metric_columns = [col for col in fold_results[0].columns if col != "Time Taken"]
+    aggregated = fold_results[0].copy()
+    for model in aggregated.index:
+        for metric_col in metric_columns:
+            scores = [
+                df.loc[model, metric_col]
+                for df in fold_results
+                if model in df.index
+            ]
+            if scores:
+                aggregated.loc[model, metric_col] = float(np.mean(scores))
+
+    aggregated = aggregated.sort_values("F1 Score", ascending=False)
+    # SHAP TreeExplainer yalnızca ağaç tabanlı modellerle uyumlu; XAI trade-off'u.
+    best_model_name = _select_tree_model(aggregated)
+    return best_model_name, aggregated
+
+
+def _build_param_dist(classifier_name: str) -> dict[str, Any]:
+    """Model tipine özel hiperparametre aralıkları.
+
+    Sınırlar literatürde yaygın aralıklardan seçildi: çok sığ modeller underfitting,
+    çok derin/agresif modeller overfitting riski taşır; orta bant genelleme için
+    daha güvenilir bir arama alanı bırakır.
+    """
+    if classifier_name == "XGBClassifier":
+        return {
+            # Düşük learning_rate + yüksek n_estimators: daha yumuşak öğrenme eğrisi.
+            "classifier__n_estimators": [50, 100, 200, 300],
+            "classifier__max_depth": [3, 4, 5, 6, 7, 8],
+            "classifier__learning_rate": [0.005, 0.01, 0.05, 0.1, 0.15, 0.2],
+            # subsample/colsample: ağaçlar arası çeşitlilik; ezberlemeyi sınırlar.
+            "classifier__subsample": [0.6, 0.7, 0.8, 0.9, 1.0],
+            "classifier__colsample_bytree": [0.6, 0.7, 0.8, 0.9, 1.0],
+            "classifier__min_child_weight": [1, 2, 3, 5],
+        }
+    if classifier_name in ("RandomForestClassifier", "ExtraTreesClassifier"):
+        return {
+            "classifier__n_estimators": [50, 100, 200, 300, 400],
+            # None derinliği overfitting'e açık; üst sınır 20 ile sınırlandı.
+            "classifier__max_depth": [5, 8, 10, 12, 15, 20, None],
+            # min_samples_* yaprak gürültüsünü filtreler, varyansı düşürür.
+            "classifier__min_samples_split": [2, 3, 5, 10, 15],
+            "classifier__min_samples_leaf": [1, 2, 4, 6, 8],
+            "classifier__max_features": ["sqrt", "log2", None],
+        }
+    if classifier_name == "LGBMClassifier":
+        return {
+            "classifier__n_estimators": [50, 100, 200, 300],
+            "classifier__max_depth": [3, 5, 7, 10, 15],
+            "classifier__learning_rate": [0.005, 0.01, 0.05, 0.1, 0.2],
+            # num_leaves max_depth ile birlikte model kapasitesini dengeler.
+            "classifier__num_leaves": [15, 31, 63, 127],
+            "classifier__subsample": [0.6, 0.7, 0.8, 0.9, 1.0],
+        }
+    if classifier_name == "DecisionTreeClassifier":
+        return {
+            "classifier__max_depth": [3, 5, 7, 10, 15, 20],
+            "classifier__min_samples_split": [2, 3, 5, 10, 15],
+            "classifier__min_samples_leaf": [1, 2, 4, 6, 8],
+        }
+    # Bilinmeyen sınıflandırıcılar için dar fallback; geniş grid gereksiz arama maliyeti yaratır.
+    return {
+        "classifier__n_estimators": [50, 100, 200],
+        "classifier__max_depth": [5, 8, 12, None],
+    }
 
 
 def tune_hyperparameters(
@@ -143,47 +230,10 @@ def tune_hyperparameters(
 ) -> tuple[Any, dict[str, Any]]:
     """RandomizedSearchCV ile pipeline hiperparametrelerini optimize eder."""
     cv = StratifiedKFold(n_splits=CV_FOLDS, shuffle=True, random_state=RANDOM_STATE)
-    
+
     classifier = pipeline.named_steps["classifier"]
     classifier_name = type(classifier).__name__
-
-    if classifier_name == "XGBClassifier":
-        param_dist = {
-            "classifier__n_estimators": [50, 100, 200, 300],
-            "classifier__max_depth": [3, 4, 5, 6, 7, 8],
-            "classifier__learning_rate": [0.005, 0.01, 0.05, 0.1, 0.15, 0.2],
-            "classifier__subsample": [0.6, 0.7, 0.8, 0.9, 1.0],
-            "classifier__colsample_bytree": [0.6, 0.7, 0.8, 0.9, 1.0],
-            "classifier__min_child_weight": [1, 2, 3, 5],
-        }
-    elif classifier_name in ("RandomForestClassifier", "ExtraTreesClassifier"):
-        param_dist = {
-            "classifier__n_estimators": [50, 100, 200, 300, 400],
-            "classifier__max_depth": [5, 8, 10, 12, 15, 20, None],
-            "classifier__min_samples_split": [2, 3, 5, 10, 15],
-            "classifier__min_samples_leaf": [1, 2, 4, 6, 8],
-            "classifier__max_features": ["sqrt", "log2", None],
-        }
-    elif classifier_name == "LGBMClassifier":
-        param_dist = {
-            "classifier__n_estimators": [50, 100, 200, 300],
-            "classifier__max_depth": [3, 5, 7, 10, 15],
-            "classifier__learning_rate": [0.005, 0.01, 0.05, 0.1, 0.2],
-            "classifier__num_leaves": [15, 31, 63, 127],
-            "classifier__subsample": [0.6, 0.7, 0.8, 0.9, 1.0],
-        }
-    elif classifier_name == "DecisionTreeClassifier":
-        param_dist = {
-            "classifier__max_depth": [3, 5, 7, 10, 15, 20],
-            "classifier__min_samples_split": [2, 3, 5, 10, 15],
-            "classifier__min_samples_leaf": [1, 2, 4, 6, 8],
-        }
-    else:
-        # Fallback grid for other types of classifiers
-        param_dist = {
-            "classifier__n_estimators": [50, 100, 200],
-            "classifier__max_depth": [5, 8, 12, None],
-        }
+    param_dist = _build_param_dist(classifier_name)
 
     search = RandomizedSearchCV(
         estimator=pipeline,
@@ -208,6 +258,61 @@ def tune_hyperparameters(
             best_params[key] = value
 
     return search.best_estimator_, best_params
+
+
+def nested_cross_validate_model(
+    pipeline,
+    X_train: pd.DataFrame,
+    y_train: np.ndarray,
+) -> dict[str, float]:
+    """Nested CV ile tarafsız genelleme tahmini.
+
+    Hiperparametre tuning ve skorlama aynı veride yapılırsa selection bias oluşur;
+    dış fold tuning'i içeride, değerlendirmeyi dışarıda tutarak optimistik
+    metrikleri engeller. cross_validation ile yan yana raporlanır: biri tuning
+    sonrası modelin CV profili, diğeri tuning sürecinin kendisinin tarafsız skoru.
+
+    Scoring tutarlılığı: iç döngü (inner_cv) ve dış değerlendirme metriği f1_macro
+    olarak hizalandı — tune_hyperparameters() ve cross_validate_model() ile aynı
+    kriter; çok-sınıflı sınıflandırmada accuracy'ye göre daha kararlı karşılaştırma
+    sağlar.
+    """
+    classifier = pipeline.named_steps["classifier"]
+    classifier_name = type(classifier).__name__
+    param_dist = _build_param_dist(classifier_name)
+
+    outer_cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=RANDOM_STATE)
+    inner_cv = StratifiedKFold(n_splits=3, shuffle=True, random_state=RANDOM_STATE)
+    outer_f1_scores: list[float] = []
+
+    for train_idx, val_idx in outer_cv.split(X_train, y_train):
+        X_outer_train = X_train.iloc[train_idx]
+        X_outer_val = X_train.iloc[val_idx]
+        y_outer_train = y_train[train_idx]
+        y_outer_val = y_train[val_idx]
+
+        # clone: önceki outer fold'un en iyi parametreleri sonraki fold'a sızmasın.
+        # scoring="f1_macro": iç ve dış döngü aynı metriği optimize eder;
+        # tutarsız metrik seçimi nested CV'nin bias-free özelliğini zayıflatır.
+        search = RandomizedSearchCV(
+            estimator=clone(pipeline),
+            param_distributions=param_dist,
+            n_iter=50,
+            cv=inner_cv,
+            scoring="f1_macro",
+            random_state=RANDOM_STATE,
+            n_jobs=-1,
+        )
+        search.fit(X_outer_train, y_outer_train)
+        y_pred = search.best_estimator_.predict(X_outer_val)
+        outer_f1_scores.append(
+            float(f1_score(y_outer_val, y_pred, average="macro", zero_division=0))
+        )
+
+    return {
+        "f1_macro_mean": float(np.mean(outer_f1_scores)),
+        "f1_macro_std": float(np.std(outer_f1_scores)),
+    }
 
 
 def cross_validate_model(
@@ -635,6 +740,7 @@ def train() -> dict[str, Any]:
     pipeline = build_pipeline(classifier)
     pipeline, best_params = tune_hyperparameters(pipeline, X_train, y_train_enc)
 
+    nested_cv_metrics = nested_cross_validate_model(pipeline, X_train, y_train_enc)
     cv_metrics = cross_validate_model(pipeline, X_train, y_train_enc)
     train_eval = evaluate_on_split(pipeline, X_train, y_train_enc, label_encoder, split_name="train")
     test_eval = evaluate_on_split(pipeline, X_test, y_test_enc, label_encoder, split_name="test")
@@ -687,8 +793,8 @@ def train() -> dict[str, Any]:
         "best_model": best_model_name,
         "best_params": best_params,
         "model_selection": {
-            "method": "lazypredict_on_train_validation_split",
-            "validation_size": LAZYPREDICT_VAL_SIZE,
+            "method": "lazypredict_stratified_kfold",
+            "cv_folds": LAZYPREDICT_CV_FOLDS,
             "tree_based_filter": TREE_BASED_MODELS,
             "default_fallback": DEFAULT_TREE_MODEL,
             "rationale": (
@@ -700,6 +806,7 @@ def train() -> dict[str, Any]:
         "baseline_dummy_classifier": baseline_metrics,
         "lazypredict_top5": lazy_results.head(5).reset_index().to_dict(orient="records"),
         "cross_validation": cv_metrics,
+        "nested_cv": nested_cv_metrics,
         "train_metrics": {
             "accuracy": train_eval["accuracy"],
             "balanced_accuracy": train_eval["balanced_accuracy"],

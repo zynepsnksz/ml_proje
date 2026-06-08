@@ -62,8 +62,8 @@ def load_artifact() -> dict:
             f"Model dosyası bulunamadı: {MODEL_PATH}\n"
             "Önce `python -m src.models.train` komutunu çalıştırın."
         )
-        with open(MODEL_PATH, "rb") as f:
-            return dill.load(f)
+    with open(MODEL_PATH, "rb") as f:
+        return dill.load(f)
 
 
 @st.cache_resource
