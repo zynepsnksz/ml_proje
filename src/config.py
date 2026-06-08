@@ -42,6 +42,21 @@ FEATURE_IMPORTANCE_PATH = OUTPUT_DIR / "feature_importance.png"
 SHAP_SUMMARY_PATH = OUTPUT_DIR / "shap_summary.png"
 MODEL_COMPARISON_PATH = OUTPUT_DIR / "model_comparison.png"
 LAZYPREDICT_PATH = OUTPUT_DIR / "lazypredict_results.csv"
+CALIBRATION_CURVE_PATH = OUTPUT_DIR / "calibration_curve.png"
+
+# Prediction Confidence Analysis eşikleri (yüzde, 0-100)
+CONFIDENCE_HIGH_THRESHOLD = 90.0
+CONFIDENCE_MEDIUM_THRESHOLD = 70.0
+
+CONFIDENCE_LEVEL_HIGH = "High"
+CONFIDENCE_LEVEL_MEDIUM = "Medium"
+CONFIDENCE_LEVEL_LOW = "Low"
+
+CONFIDENCE_LEVEL_LABELS: dict[str, str] = {
+    CONFIDENCE_LEVEL_HIGH: "High Confidence",
+    CONFIDENCE_LEVEL_MEDIUM: "Medium Confidence",
+    CONFIDENCE_LEVEL_LOW: "Low Confidence",
+}
 
 
 def relative_to_project(path: Path) -> str:

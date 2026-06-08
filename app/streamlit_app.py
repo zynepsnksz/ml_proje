@@ -20,7 +20,8 @@ from src.preprocessing import FeatureEngineer
 from src.explainability.shap_analysis import supports_tree_explainer
 from src.explainability.lime_analysis import explain_instance_lime
 from src.explainability.shap_analysis import plot_local_waterfall
-from src.models.predict import predict_top3
+from src.models.confidence import get_confidence_level_label, get_confidence_user_message
+from src.models.predict import predict_with_confidence
 
 
 def _on_scenario_change(scenarios: dict[str, dict[str, float]]) -> None:
@@ -200,6 +201,35 @@ def main() -> None:
             line-height: 1.4;
             margin-top: auto;
         }
+
+        .confidence-card {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.04);
+        }
+        .confidence-card h4 {
+            margin: 0 0 1rem 0;
+            color: #0f172a;
+            font-size: 1.1rem;
+        }
+        .confidence-metric {
+            margin-bottom: 0.75rem;
+        }
+        .confidence-metric-label {
+            font-size: 0.8rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+        }
+        .confidence-metric-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -208,7 +238,8 @@ def main() -> None:
     st.title("🌱 Akıllı Tarım Karar Destek ve Mahsul Öneri Sistemi")
     st.markdown(
         "Toprak bileşenleri ve iklim verilerine göre 22 farklı ürün arasından "
-        "en uygun mahsulleri öneren ve yapay zeka kararlarını (SHAP/LIME) açıklayan kontrol paneli."
+        "en uygun mahsulleri öneren; **Confidence Analysis** ile modelin kararına ne kadar "
+        "güvendiğini ve **SHAP/LIME** ile neden bu kararı verdiğini açıklayan kontrol paneli."
     )
 
     _init_session_state()
@@ -281,13 +312,20 @@ def main() -> None:
 
     instance_df = _build_instance_df()
     try:
-        top3 = predict_top3(instance_df, artifact=artifact)
+        prediction_result = predict_with_confidence(instance_df, artifact=artifact)
         label_index = int(pipeline.predict(instance_df)[0])
     except ValueError as e:
         st.error(f"⚠️ Girdi Doğrulama Hatası: {str(e)}")
         st.stop()
 
-    best_crop, best_score = top3[0]
+    top3 = [
+        (item["crop"], item["probability"]) for item in prediction_result["top_predictions"]
+    ]
+    best_crop = prediction_result["prediction"]
+    best_score = top3[0][1]
+    confidence_score = prediction_result["confidence_score"]
+    confidence_level = prediction_result["confidence_level"]
+    probability_margin = prediction_result["probability_margin"]
 
     st.subheader("📊 Tahmin Sonuçları")
 
@@ -299,6 +337,58 @@ def main() -> None:
         st.metric("2. Alternatif", top3[1][0].title(), f"{top3[1][1] * 100:.2f}%")
     with col3:
         st.metric("3. Alternatif", top3[2][0].title(), f"{top3[2][1] * 100:.2f}%")
+
+    st.markdown("#### Prediction Confidence")
+    st.caption(
+        "SHAP/LIME → model **neden** bu kararı verdi? · "
+        "Confidence Analysis → model bu karardan **ne kadar emin**?"
+    )
+    conf_col1, conf_col2, conf_col3 = st.columns(3)
+    with conf_col1:
+        st.markdown(
+            f"""
+            <div class="confidence-card">
+                <div class="confidence-metric">
+                    <div class="confidence-metric-label">Confidence Score</div>
+                    <div class="confidence-metric-value">{confidence_score}%</div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with conf_col2:
+        level_label = get_confidence_level_label(confidence_level)
+        st.markdown(
+            f"""
+            <div class="confidence-card">
+                <div class="confidence-metric">
+                    <div class="confidence-metric-label">Confidence Level</div>
+                    <div class="confidence-metric-value">{level_label}</div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with conf_col3:
+        st.markdown(
+            f"""
+            <div class="confidence-card">
+                <div class="confidence-metric">
+                    <div class="confidence-metric-label">Probability Margin</div>
+                    <div class="confidence-metric-value">{probability_margin}%</div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    msg_type, msg_text = get_confidence_user_message(confidence_level)
+    if msg_type == "success":
+        st.success(msg_text)
+    elif msg_type == "warning":
+        st.warning(msg_text)
+    else:
+        st.error(msg_text)
 
     bar_fig = _plot_top3_bar(top3)
     st.pyplot(bar_fig)
@@ -366,6 +456,10 @@ def main() -> None:
 
     st.markdown("---")
     st.subheader("🔍 Yapay Zeka Karar Açıklamaları (XAI)")
+    st.info(
+        "**SHAP / LIME** — Modelin bu tahmine hangi özelliklerle ulaştığını açıklar (neden?). "
+        "Yukarıdaki **Confidence Analysis** kartı ise modelin kendi tahminine ne kadar güvendiğini gösterir (ne kadar emin?)."
+    )
 
     tab_shap, tab_lime = st.tabs(["SHAP Waterfall Açıklaması", "LIME Yerel Katkı Açıklaması"])
 

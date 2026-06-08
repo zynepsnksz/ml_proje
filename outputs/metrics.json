@@ -150,7 +150,7 @@
       "F1 Score": 0.9914291517670452,
       "Precision": 0.992405267873364,
       "Recall": 0.9914772672213469,
-      "Time Taken": 0.34502363204956055
+      "Time Taken": 0.40613365173339844
     },
     {
       "Model": "GaussianNB",
@@ -160,7 +160,7 @@
       "F1 Score": 0.9897259372286004,
       "Precision": 0.9899549374202118,
       "Recall": 0.9897717516226624,
-      "Time Taken": 0.02953624725341797
+      "Time Taken": 0.028756141662597656
     },
     {
       "Model": "ExtraTreesClassifier",
@@ -170,7 +170,7 @@
       "F1 Score": 0.989240770697552,
       "Precision": 0.9898212426141013,
       "Recall": 0.9892058305376444,
-      "Time Taken": 0.21095705032348633
+      "Time Taken": 0.21765971183776855
     },
     {
       "Model": "LGBMClassifier",
@@ -180,7 +180,7 @@
       "F1 Score": 0.9835590646878458,
       "Precision": 0.984308398831629,
       "Recall": 0.9835233626565731,
-      "Time Taken": 3.067996025085449
+      "Time Taken": 3.498988628387451
     },
     {
       "Model": "BaggingClassifier",
@@ -190,7 +190,7 @@
       "F1 Score": 0.9834855943060149,
       "Precision": 0.984332647913737,
       "Recall": 0.9835262697854344,
-      "Time Taken": 0.10339188575744629
+      "Time Taken": 0.18055462837219238
     }
   ],
   "cross_validation": {
@@ -980,6 +980,41 @@
     "P_to_K": 0.06263187806249673,
     "Soil_Fertility": 0.06100653725893495
   },
+  "confidence_analysis": {
+    "mean_confidence": 92.8,
+    "median_confidence": 96.9,
+    "min_confidence": 39.06,
+    "max_confidence": 100.0,
+    "mean_probability_margin": 88.6,
+    "high_confidence_rate": 0.7591,
+    "medium_confidence_rate": 0.1932,
+    "low_confidence_rate": 0.0477
+  },
+  "calibration_analysis": {
+    "n_bins": 10,
+    "mean_predicted_value": [
+      0.3905888224957304,
+      0.4596705004878104,
+      0.5619950657065527,
+      0.6559764340151555,
+      0.7624891340491773,
+      0.8625394817687719,
+      0.9729262405228539
+    ],
+    "fraction_of_positives": [
+      0.0,
+      0.0,
+      1.0,
+      0.8181818181818182,
+      1.0,
+      1.0,
+      1.0
+    ],
+    "reliability_summary": "Model olasılıkları makul düzeyde kalibre; hafif sapmalar gözlenebilir.",
+    "calibration_bias": "slight_miscalibration",
+    "mean_calibration_gap": 0.0217,
+    "mean_absolute_calibration_error": 0.2646
+  },
   "artifacts": {
     "model_path": "models\\best_model.pkl",
     "metrics_path": "outputs\\metrics.json",
@@ -990,6 +1025,7 @@
     "feature_importance_path": "outputs\\feature_importance.png",
     "shap_summary_path": "outputs\\shap_summary.png",
     "model_comparison_path": "outputs\\model_comparison.png",
-    "lazypredict_path": "outputs\\lazypredict_results.csv"
+    "lazypredict_path": "outputs\\lazypredict_results.csv",
+    "calibration_curve_path": "outputs\\calibration_curve.png"
   }
 }

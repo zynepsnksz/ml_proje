@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 
 from src.config import FEATURE_COLUMNS, MODEL_PATH
+from src.models.confidence import PredictionResult, build_prediction_result
 from src.preprocessing import decode_labels
 
 
@@ -64,3 +65,26 @@ def predict_top3(
     proba_dict = predict_proba(features, artifact=artifact)
     ranked = sorted(proba_dict.items(), key=lambda item: item[1], reverse=True)
     return ranked[:3]
+
+
+def predict_with_confidence(
+    features: dict | pd.Series | pd.DataFrame | np.ndarray,
+    artifact: dict[str, Any] | None = None,
+    top_n: int = 3,
+) -> PredictionResult:
+    """Tahmin, güven skoru, güven seviyesi ve margin ile zenginleştirilmiş sonuç döndürür."""
+    artifact = artifact or load_model()
+    X = _to_dataframe(features)
+    pipeline = artifact["pipeline"]
+    encoder = artifact["label_encoder"]
+
+    if not hasattr(pipeline.named_steps["classifier"], "predict_proba"):
+        raise AttributeError("Seçilen model predict_proba desteklemiyor.")
+
+    proba = pipeline.predict_proba(X)[0]
+    classes = decode_labels(encoder, range(len(proba)))
+    ranked = sorted(zip(classes, proba.tolist()), key=lambda item: item[1], reverse=True)
+    top_predictions = ranked[:top_n]
+    prediction = top_predictions[0][0]
+
+    return build_prediction_result(prediction, top_predictions, proba)

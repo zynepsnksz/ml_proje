@@ -31,6 +31,7 @@ from sklearn.preprocessing import StandardScaler, label_binarize
 
 from src.config import (
     ALL_FEATURE_COLUMNS,
+    CALIBRATION_CURVE_PATH,
     CONFUSION_MATRIX_NORMALIZED_PATH,
     CONFUSION_MATRIX_PATH,
     CV_FOLDS,
@@ -48,6 +49,7 @@ from src.config import (
     TARGET_COLUMN,
     relative_to_project,
 )
+from src.models.confidence import plot_calibration_curve, summarize_test_confidence
 from src.data.loader import get_feature_target, load_data, split_data
 from src.explainability.shap_analysis import plot_summary, supports_tree_explainer
 from src.preprocessing import (
@@ -779,6 +781,14 @@ def train() -> dict[str, Any]:
 
     lowest_auc_classes = roc_per_class[:3] if roc_per_class else []
 
+    confidence_analysis: dict[str, Any] | None = None
+    calibration_analysis: dict[str, Any] | None = None
+    if test_eval["y_proba"] is not None:
+        y_proba_arr = np.array(test_eval["y_proba"])
+        y_true_arr = np.array(test_eval["y_true"])
+        confidence_analysis = summarize_test_confidence(y_proba_arr)
+        calibration_analysis = plot_calibration_curve(y_true_arr, y_proba_arr)
+
     from src.explainability.lime_analysis import create_lime_explainer
     from src.preprocessing import FeatureEngineer
 
@@ -833,6 +843,8 @@ def train() -> dict[str, Any]:
         "misclassification_analysis": misclassification,
         "lowest_roc_auc_classes": lowest_auc_classes,
         "feature_importance": feature_importance,
+        "confidence_analysis": confidence_analysis,
+        "calibration_analysis": calibration_analysis,
         "artifacts": {
             "model_path": relative_to_project(MODEL_PATH),
             "metrics_path": relative_to_project(METRICS_PATH),
@@ -844,6 +856,7 @@ def train() -> dict[str, Any]:
             "shap_summary_path": relative_to_project(SHAP_SUMMARY_PATH),
             "model_comparison_path": relative_to_project(MODEL_COMPARISON_PATH),
             "lazypredict_path": relative_to_project(LAZYPREDICT_PATH),
+            "calibration_curve_path": relative_to_project(CALIBRATION_CURVE_PATH),
         },
     }
 
